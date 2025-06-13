@@ -8,9 +8,9 @@ import { Activity, Eye, EyeOff, Moon, Sun } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/hooks/use-toast';
-import { useForm } from 'react-hook-form'; // New Import
-import { zodResolver } from '@hookform/resolvers/zod'; // New Import
-import * as z from 'zod'; // New Import
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 
 // Define validation schema using Zod
 const authSchema = z.object({
@@ -39,7 +39,7 @@ const Auth = () => {
     },
   });
 
-  const { register, handleSubmit, formState: { errors } } = form; // Destructure form methods
+  const { register, handleSubmit, formState: { errors } } = form;
 
   useEffect(() => {
     if (user) {
@@ -47,7 +47,7 @@ const Auth = () => {
     }
   }, [user, navigate]);
 
-  const onSubmit = async (data: AuthFormValues) => { // Use handleSubmit from react-hook-form
+  const onSubmit = async (data: AuthFormValues) => {
     setLoading(true);
 
     try {
@@ -66,7 +66,7 @@ const Auth = () => {
           title: "Account Created",
           description: "Please check your email to confirm your account and sign in.",
         });
-        setIsLogin(true); // Switch to login after successful sign up
+        setIsLogin(true);
       } else {
         toast({
           title: "Signed In",
@@ -74,7 +74,7 @@ const Auth = () => {
         });
       }
     } catch (error) {
-      console.error("An unexpected error occurred:", error); // Log unexpected errors for debugging
+      console.error("An unexpected error occurred:", error);
       toast({
         title: "Error",
         description: "An unexpected error occurred. Please try again.",
@@ -121,18 +121,18 @@ const Auth = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4"> {/* Use handleSubmit from react-hook-form */}
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 type="email"
                 placeholder="Enter your email"
-                {...register("email")} // Register input with react-hook-form
-                aria-invalid={errors.email ? "true" : "false"} // Set aria-invalid for styling
+                {...register("email")}
+                aria-invalid={errors.email ? "true" : "false"}
               />
               {errors.email && (
-                <p className="text-destructive text-sm mt-1">{errors.email.message}</p> // Display validation error
+                <p className="text-destructive text-sm mt-1">{errors.email.message}</p> // Corrected comment syntax
               )}
             </div>
 
@@ -143,8 +143,8 @@ const Auth = () => {
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   placeholder="Enter your password"
-                  {...register("password")} // Register input with react-hook-form
-                  aria-invalid={errors.password ? "true" : "false"} // Set aria-invalid for styling
+                  {...register("password")}
+                  aria-invalid={errors.password ? "true" : "false"}
                 />
                 <Button
                   type="button"
@@ -161,7 +161,7 @@ const Auth = () => {
                 </Button>
               </div>
               {errors.password && (
-                <p className="text-destructive text-sm mt-1">{errors.password.message}</p> {/* Display validation error */}
+                <p className="text-destructive text-sm mt-1">{errors.password.message}</p> // Corrected comment syntax
               )}
             </div>
 
@@ -188,7 +188,7 @@ const Auth = () => {
               type="button"
               onClick={() => {
                 setIsLogin(!isLogin);
-                form.reset(); // Reset form fields and errors when switching between login/signup
+                form.reset();
               }}
               className="text-sm text-muted-foreground hover:text-primary"
             >
