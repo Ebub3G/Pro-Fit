@@ -1,12 +1,15 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { Crown, TrendingUp } from 'lucide-react';
+import { useTier } from '@/contexts/TierContext';
 
 const WeightTracker = () => {
+  const { isPro, setTier } = useTier();
   const [weight, setWeight] = useState('');
   const [weightData, setWeightData] = useState([
     { date: '2024-05-01', weight: 75.2 },
@@ -16,6 +19,9 @@ const WeightTracker = () => {
     { date: '2024-05-29', weight: 72.9 },
     { date: '2024-06-05', weight: 72.5 },
   ]);
+
+  const freeDataLimit = 7; // Show last 7 days for free users
+  const displayData = isPro ? weightData : weightData.slice(-freeDataLimit);
 
   const addWeightEntry = () => {
     if (weight) {
@@ -29,11 +35,30 @@ const WeightTracker = () => {
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <Card>
         <CardHeader>
-          <CardTitle>Weight Progress</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle>Weight Progress</CardTitle>
+            {!isPro && (
+              <Badge variant="outline" className="text-xs">
+                Last {freeDataLimit} days
+              </Badge>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
+          {!isPro && (
+            <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <div className="flex items-center gap-2 mb-1">
+                <TrendingUp className="h-4 w-4 text-amber-600" />
+                <span className="text-sm font-medium text-amber-800">Limited Historical Data</span>
+              </div>
+              <p className="text-xs text-amber-700">
+                Upgrade to Pro to view complete weight history and advanced analytics.
+              </p>
+            </div>
+          )}
+          
           <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={weightData}>
+            <LineChart data={displayData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis 
                 dataKey="date" 
@@ -56,6 +81,20 @@ const WeightTracker = () => {
               />
             </LineChart>
           </ResponsiveContainer>
+          
+          {!isPro && (
+            <div className="mt-4 text-center">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setTier('pro')}
+                className="border-amber-200 text-amber-700 hover:bg-amber-50"
+              >
+                <Crown className="h-3 w-3 mr-1" />
+                Upgrade for Full History
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 

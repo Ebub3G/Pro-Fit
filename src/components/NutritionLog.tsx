@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,8 +5,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
+import { Crown, Lock } from 'lucide-react';
+import { useTier } from '@/contexts/TierContext';
 
 const NutritionLog = () => {
+  const { isPro, setTier } = useTier();
   const [foodEntry, setFoodEntry] = useState({
     name: '',
     calories: '',
@@ -36,8 +38,11 @@ const NutritionLog = () => {
     { name: 'Greek Yogurt', calories: 100, protein: 17, carbs: 6, fat: 0 }
   ]);
 
+  const maxFreeEntries = 5;
+  const canAddFood = isPro || foodLog.length < maxFreeEntries;
+
   const addFood = () => {
-    if (foodEntry.name && foodEntry.calories) {
+    if (foodEntry.name && foodEntry.calories && canAddFood) {
       const newFood = {
         name: foodEntry.name,
         calories: parseFloat(foodEntry.calories) || 0,
@@ -115,7 +120,14 @@ const NutritionLog = () => {
           </div>
 
           <div className="pt-4 border-t">
-            <h4 className="font-semibold mb-3">Today's Food Log</h4>
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="font-semibold">Today's Food Log</h4>
+              {!isPro && (
+                <Badge variant="outline" className="text-xs">
+                  {foodLog.length}/{maxFreeEntries} entries
+                </Badge>
+              )}
+            </div>
             <div className="space-y-2 max-h-48 overflow-y-auto">
               {foodLog.map((food, index) => (
                 <div key={index} className="flex justify-between items-center p-2 bg-muted rounded">
@@ -133,6 +145,26 @@ const NutritionLog = () => {
           <CardTitle>Add Food</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {!canAddFood && (
+            <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <Lock className="h-4 w-4 text-amber-600" />
+                <span className="font-medium text-amber-800">Free Tier Limit Reached</span>
+              </div>
+              <p className="text-sm text-amber-700 mb-3">
+                You've reached the limit of {maxFreeEntries} food entries per day. Upgrade to Pro for unlimited entries.
+              </p>
+              <Button 
+                size="sm"
+                onClick={() => setTier('pro')}
+                className="bg-amber-600 hover:bg-amber-700"
+              >
+                <Crown className="h-3 w-3 mr-1" />
+                Upgrade to Pro
+              </Button>
+            </div>
+          )}
+          
           <div className="space-y-2">
             <Label htmlFor="foodName">Food Name</Label>
             <Input
@@ -140,6 +172,7 @@ const NutritionLog = () => {
               placeholder="e.g., Grilled Chicken"
               value={foodEntry.name}
               onChange={(e) => setFoodEntry(prev => ({ ...prev, name: e.target.value }))}
+              disabled={!canAddFood}
             />
           </div>
           
@@ -152,6 +185,7 @@ const NutritionLog = () => {
                 placeholder="165"
                 value={foodEntry.calories}
                 onChange={(e) => setFoodEntry(prev => ({ ...prev, calories: e.target.value }))}
+                disabled={!canAddFood}
               />
             </div>
             
@@ -164,6 +198,7 @@ const NutritionLog = () => {
                 placeholder="31"
                 value={foodEntry.protein}
                 onChange={(e) => setFoodEntry(prev => ({ ...prev, protein: e.target.value }))}
+                disabled={!canAddFood}
               />
             </div>
             
@@ -176,6 +211,7 @@ const NutritionLog = () => {
                 placeholder="0"
                 value={foodEntry.carbs}
                 onChange={(e) => setFoodEntry(prev => ({ ...prev, carbs: e.target.value }))}
+                disabled={!canAddFood}
               />
             </div>
             
@@ -188,11 +224,16 @@ const NutritionLog = () => {
                 placeholder="3.6"
                 value={foodEntry.fat}
                 onChange={(e) => setFoodEntry(prev => ({ ...prev, fat: e.target.value }))}
+                disabled={!canAddFood}
               />
             </div>
           </div>
           
-          <Button onClick={addFood} className="w-full">
+          <Button 
+            onClick={addFood} 
+            className="w-full"
+            disabled={!canAddFood}
+          >
             Add to Food Log
           </Button>
         </CardContent>
