@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Dumbbell, Plus } from 'lucide-react';
 
 const MuscleTracker = () => {
   const [measurements, setMeasurements] = useState({
@@ -62,121 +63,85 @@ const MuscleTracker = () => {
   const current = measurementHistory[0];
   const previous = measurementHistory[1];
 
+  const measurements_display = [
+    { name: 'Chest', value: current?.chest, color: 'from-blue-500 to-cyan-500', bgColor: 'bg-blue-500/10' },
+    { name: 'Biceps', value: current?.biceps, color: 'from-purple-500 to-pink-500', bgColor: 'bg-purple-500/10' },
+    { name: 'Waist', value: current?.waist, color: 'from-green-500 to-emerald-500', bgColor: 'bg-green-500/10' },
+    { name: 'Thighs', value: current?.thighs, color: 'from-orange-500 to-red-500', bgColor: 'bg-orange-500/10' }
+  ];
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <Card>
+      <Card className="glass border border-white/10 hover-lift tech-border">
         <CardHeader>
-          <CardTitle>Current Measurements</CardTitle>
+          <CardTitle className="flex items-center gap-2 font-mono gradient-text">
+            <Dumbbell className="h-5 w-5" />
+            Muscle Analytics
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <div className="text-center p-4 bg-blue-50 rounded-lg">
-                <div className="text-2xl font-bold text-blue-600">{current?.chest} cm</div>
-                <div className="text-sm text-muted-foreground">Chest</div>
-                {previous && (
-                  <Badge variant="outline" className="mt-1">
-                    {getChange(current.chest, previous.chest)} cm
-                  </Badge>
-                )}
+            {measurements_display.map((measurement, index) => (
+              <div key={index} className="space-y-2">
+                <div className={`text-center p-4 glass border border-white/10 rounded-lg hover-lift ${measurement.bgColor}`}>
+                  <div className={`text-2xl font-bold font-mono bg-gradient-to-r ${measurement.color} bg-clip-text text-transparent`}>
+                    {measurement.value} cm
+                  </div>
+                  <div className="text-sm text-slate-400 font-mono uppercase tracking-wider">
+                    {measurement.name}
+                  </div>
+                  {previous && (
+                    <Badge variant="outline" className="mt-2 font-mono border-white/20">
+                      {getChange(measurement.value, 
+                        measurement.name === 'Chest' ? previous.chest :
+                        measurement.name === 'Biceps' ? previous.biceps :
+                        measurement.name === 'Waist' ? previous.waist : previous.thighs
+                      )} cm
+                    </Badge>
+                  )}
+                  {/* Progress visualization */}
+                  <div className="mt-2 w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                    <div className={`h-full bg-gradient-to-r ${measurement.color} data-bar`} style={{ width: '70%' }}></div>
+                  </div>
+                </div>
               </div>
-            </div>
-            
-            <div className="space-y-2">
-              <div className="text-center p-4 bg-purple-50 rounded-lg">
-                <div className="text-2xl font-bold text-purple-600">{current?.biceps} cm</div>
-                <div className="text-sm text-muted-foreground">Biceps</div>
-                {previous && (
-                  <Badge variant="outline" className="mt-1">
-                    {getChange(current.biceps, previous.biceps)} cm
-                  </Badge>
-                )}
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <div className="text-center p-4 bg-green-50 rounded-lg">
-                <div className="text-2xl font-bold text-green-600">{current?.waist} cm</div>
-                <div className="text-sm text-muted-foreground">Waist</div>
-                {previous && (
-                  <Badge variant="outline" className="mt-1">
-                    {getChange(current.waist, previous.waist)} cm
-                  </Badge>
-                )}
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <div className="text-center p-4 bg-orange-50 rounded-lg">
-                <div className="text-2xl font-bold text-orange-600">{current?.thighs} cm</div>
-                <div className="text-sm text-muted-foreground">Thighs</div>
-                {previous && (
-                  <Badge variant="outline" className="mt-1">
-                    {getChange(current.thighs, previous.thighs)} cm
-                  </Badge>
-                )}
-              </div>
-            </div>
+            ))}
           </div>
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="glass border border-white/10 hover-lift tech-border">
         <CardHeader>
-          <CardTitle>Log Measurements</CardTitle>
+          <CardTitle className="flex items-center gap-2 font-mono gradient-text">
+            <Plus className="h-5 w-5" />
+            Log Measurements
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="chest">Chest (cm)</Label>
-              <Input
-                id="chest"
-                type="number"
-                step="0.1"
-                placeholder="95.0"
-                value={measurements.chest}
-                onChange={(e) => handleInputChange('chest', e.target.value)}
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="biceps">Biceps (cm)</Label>
-              <Input
-                id="biceps"
-                type="number"
-                step="0.1"
-                placeholder="35.0"
-                value={measurements.biceps}
-                onChange={(e) => handleInputChange('biceps', e.target.value)}
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="waist">Waist (cm)</Label>
-              <Input
-                id="waist"
-                type="number"
-                step="0.1"
-                placeholder="82.0"
-                value={measurements.waist}
-                onChange={(e) => handleInputChange('waist', e.target.value)}
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="thighs">Thighs (cm)</Label>
-              <Input
-                id="thighs"
-                type="number"
-                step="0.1"
-                placeholder="55.0"
-                value={measurements.thighs}
-                onChange={(e) => handleInputChange('thighs', e.target.value)}
-              />
-            </div>
+            {Object.entries(measurements).map(([key, value]) => (
+              <div key={key} className="space-y-2">
+                <Label htmlFor={key} className="font-mono text-slate-400 capitalize">
+                  {key} (cm)
+                </Label>
+                <Input
+                  id={key}
+                  type="number"
+                  step="0.1"
+                  placeholder={key === 'chest' ? '95.0' : key === 'biceps' ? '35.0' : key === 'waist' ? '82.0' : '55.0'}
+                  value={value}
+                  onChange={(e) => handleInputChange(key, e.target.value)}
+                  className="glass border-white/10 focus:border-purple-400 font-mono"
+                />
+              </div>
+            ))}
           </div>
           
-          <Button onClick={addMeasurement} className="w-full">
+          <Button 
+            onClick={addMeasurement} 
+            className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 font-mono neon-glow-purple"
+          >
+            <Plus className="h-4 w-4 mr-2" />
             Save Measurements
           </Button>
         </CardContent>
