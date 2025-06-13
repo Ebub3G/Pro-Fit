@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -9,18 +8,38 @@ import { Activity, Eye, EyeOff, Moon, Sun } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/hooks/use-toast';
+import { useForm } from 'react-hook-form'; // New Import
+import { zodResolver } from '@hookform/resolvers/zod'; // New Import
+import * as z from 'zod'; // New Import
+
+// Define validation schema using Zod
+const authSchema = z.object({
+  email: z.string().email({ message: "Invalid email address." }),
+  password: z.string().min(6, { message: "Password must be at least 6 characters." }),
+});
+
+type AuthFormValues = z.infer<typeof authSchema>;
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  
+
   const { signIn, signUp, user } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  // Initialize react-hook-form
+  const form = useForm<AuthFormValues>({
+    resolver: zodResolver(authSchema),
+    defaultValues: {
+      email: '',
+      password: '',
+    },
+  });
+
+  const { register, handleSubmit, formState: { errors } } = form; // Destructure form methods
 
   useEffect(() => {
     if (user) {
@@ -28,37 +47,55 @@ const Auth = () => {
     }
   }, [user, navigate]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmit = async (data: AuthFormValues) => { // Use handleSubmit from react-hook-form
     setLoading(true);
 
     try {
-      const { error } = isLogin 
-        ? await signIn(email, password)
-        : await signUp(email, password);
+      const { error } = isLogin
+        ? await signIn(data.email, data.password)
+        : await signUp(data.email, data.password);
 
       if (error) {
         toast({
-          title: "Error",
+          title: "Authentication Error",
           description: error.message,
           variant: "destructive",
         });
       } else if (!isLogin) {
         toast({
-          title: "Success",
-          description: "Please check your email to confirm your account.",
+          title: "Account Created",
+          description: "Please check your email to confirm your account and sign in.",
+        });
+        setIsLogin(true); // Switch to login after successful sign up
+      } else {
+        toast({
+          title: "Signed In",
+          description: "Welcome back to FitTracker.AI!",
         });
       }
     } catch (error) {
+      console.error("An unexpected error occurred:", error); // Log unexpected errors for debugging
       toast({
         title: "Error",
-        description: "An unexpected error occurred.",
+        description: "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
     } finally {
       setLoading(false);
     }
   };
+
+  const handleForgotPassword = () => {
+    toast({
+      title: "Password Reset",
+      description: "Please visit the Supabase dashboard or your application's settings to initiate a password reset.",
+      variant: "default",
+    });
+    // In a real application, you would typically integrate with Supabase's
+    // `resetPasswordForEmail` method here and guide the user through the flow.
+    // Example: supabase.auth.resetPasswordForEmail(email);
+  };
+
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -84,29 +121,30 @@ const Auth = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4"> {/* Use handleSubmit from react-hook-form */}
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
                 placeholder="Enter your email"
+                {...register("email")} // Register input with react-hook-form
+                aria-invalid={errors.email ? "true" : "false"} // Set aria-invalid for styling
               />
+              {errors.email && (
+                <p className="text-destructive text-sm mt-1">{errors.email.message}</p> // Display validation error
+              )}
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <div className="relative">
                 <Input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
                   placeholder="Enter your password"
+                  {...register("password")} // Register input with react-hook-form
+                  aria-invalid={errors.password ? "true" : "false"} // Set aria-invalid for styling
                 />
                 <Button
                   type="button"
@@ -122,7 +160,23 @@ const Auth = () => {
                   )}
                 </Button>
               </div>
+              {errors.password && (
+                <p className="text-destructive text-sm mt-1">{errors.password.message}</p> {/* Display validation error */}
+              )}
             </div>
+
+            {isLogin && (
+              <div className="text-right">
+                <Button
+                  type="button"
+                  variant="link"
+                  className="text-sm text-muted-foreground hover:text-primary p-0 h-auto"
+                  onClick={handleForgotPassword}
+                >
+                  Forgot password?
+                </Button>
+              </div>
+            )}
 
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? 'Loading...' : (isLogin ? 'Sign In' : 'Sign Up')}
@@ -132,7 +186,10 @@ const Auth = () => {
           <div className="mt-4 text-center">
             <button
               type="button"
-              onClick={() => setIsLogin(!isLogin)}
+              onClick={() => {
+                setIsLogin(!isLogin);
+                form.reset(); // Reset form fields and errors when switching between login/signup
+              }}
               className="text-sm text-muted-foreground hover:text-primary"
             >
               {isLogin ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
