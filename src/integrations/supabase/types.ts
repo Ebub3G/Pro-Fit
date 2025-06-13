@@ -9,6 +9,156 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      user_weights: { // New table for weight tracking
+        Row: {
+          id: string // UUID for primary key
+          user_id: string // Foreign key to auth.users
+          date: string // Date of the weight entry
+          weight: number // The recorded weight
+          created_at: string // Timestamp
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          date: string
+          weight: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          date?: string
+          weight?: number
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_weights_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_nutrition_logs: { // New table for nutrition logs
+        Row: {
+          id: string
+          user_id: string
+          name: string
+          calories: number
+          protein: number
+          carbs: number
+          fat: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          name: string
+          calories: number
+          protein: number
+          carbs: number
+          fat: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          name?: string
+          calories?: number
+          protein?: number
+          carbs?: number
+          fat?: number
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_nutrition_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_workout_logs: { // New table for workout logs
+        Row: {
+          id: string
+          user_id: string
+          date: string
+          duration: number
+          exercises: Json // JSONB type to store exercise details
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          date: string
+          duration: number
+          exercises: Json
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          date?: string
+          duration?: number
+          exercises?: Json
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_workout_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_muscle_measurements: { // New table for muscle measurements
+        Row: {
+          id: string
+          user_id: string
+          date: string
+          chest: number | null
+          biceps: number | null
+          waist: number | null
+          thighs: number | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          date: string
+          chest?: number | null
+          biceps?: number | null
+          waist?: number | null
+          thighs?: number | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          date?: string
+          chest?: number | null
+          biceps?: number | null
+          waist?: number | null
+          thighs?: number | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_muscle_measurements_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      // Keep existing tables if any, or remove if not used.
       [_ in never]: never
     }
     Views: {
@@ -135,4 +285,4 @@ export const Constants = {
   public: {
     Enums: {},
   },
-} as const
+} as const;
