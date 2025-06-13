@@ -11,11 +11,21 @@ import { useToast } from '@/hooks/use-toast';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import { supabase } from '@/integrations/supabase/client'; // New Import: Import supabase client
 
 // Define validation schema using Zod
 const authSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
-  password: z.string().min(6, { message: "Password must be at least 6 characters." }),
+  password: z.string().min(6, { message: "Password must be at least 6 characters." }).optional(), // Password is optional for forgot password flow
+}).refine(data => {
+  // Only require password if it's a login/signup attempt and not part of a reset flow
+  if (data.password === undefined) {
+    return true; // Allow undefined password for initial state or forgot password form
+  }
+  return data.password.length >= 6;
+}, {
+  message: "Password must be at least 6 characters.",
+  path: ["password"],
 });
 
 type AuthFormValues = z.infer<typeof authSchema>;
@@ -37,9 +47,10 @@ const Auth = () => {
       email: '',
       password: '',
     },
+    mode: "onChange" // Validate on change for better user feedback
   });
 
-  const { register, handleSubmit, formState: { errors } } = form;
+  const { register, handleSubmit, formState: { errors }, getValues, reset } = form; // Added getValues, reset
 
   useEffect(() => {
     if (user) {
@@ -51,27 +62,30 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      const { error } = isLogin
-        ? await signIn(data.email, data.password)
-        : await signUp(data.email, data.password);
+      // Ensure password is not undefined for login/signup
+      if (isLogin || !isLogin && data.password) {
+        const { error } = isLogin
+          ? await signIn(data.email, data.password as string) // Assert password as string for signIn
+          : await signUp(data.email, data.password as string); // Assert password as string for signUp
 
-      if (error) {
-        toast({
-          title: "Authentication Error",
-          description: error.message,
-          variant: "destructive",
-        });
-      } else if (!isLogin) {
-        toast({
-          title: "Account Created",
-          description: "Please check your email to confirm your account and sign in.",
-        });
-        setIsLogin(true);
-      } else {
-        toast({
-          title: "Signed In",
-          description: "Welcome back to FitTracker.AI!",
-        });
+        if (error) {
+          toast({
+            title: "Authentication Error",
+            description: error.message,
+            variant: "destructive",
+          });
+        } else if (!isLogin) {
+          toast({
+            title: "Account Created",
+            description: "Please check your email to confirm your account and sign in.",
+          });
+          setIsLogin(true); // Switch to login after successful sign up
+        } else {
+          toast({
+            title: "Signed In",
+            description: "Welcome back to FitTracker.AI!",
+          });
+        }
       }
     } catch (error) {
       console.error("An unexpected error occurred:", error);
@@ -85,17 +99,46 @@ const Auth = () => {
     }
   };
 
-  const handleForgotPassword = () => {
-    toast({
-      title: "Password Reset",
-      description: "Please visit the Supabase dashboard or your application's settings to initiate a password reset.",
-      variant: "default",
-    });
-    // In a real application, you would typically integrate with Supabase's
-    // `resetPasswordForEmail` method here and guide the user through the flow.
-    // Example: supabase.auth.resetPasswordForEmail(email);
-  };
+  const handleForgotPassword = async () => {
+    const email = getValues("email"); // Get email from the form
+    if (!email || errors.email) { // Check if email is valid and not empty
+      toast({
+        title: "Invalid Email",
+        description: "Please enter a valid email address to reset your password.",
+        variant: "destructive",
+      });
+      return;
+    }
 
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`, // Redirect to your new reset password page
+      });
+
+      if (error) {
+        toast({
+          title: "Password Reset Error",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Password Reset Email Sent",
+          description: `A password reset link has been sent to ${email}. Please check your inbox.`,
+        });
+      }
+    } catch (error) {
+      console.error("An unexpected error occurred during password reset:", error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -130,40 +173,46 @@ const Auth = () => {
                 placeholder="Enter your email"
                 {...register("email")}
                 aria-invalid={errors.email ? "true" : "false"}
+                disabled={loading} // Disable during loading
               />
               {errors.email && (
-                <p className="text-destructive text-sm mt-1">{errors.email.message}</p> // Corrected comment syntax
+                <p className="text-destructive text-sm mt-1">{errors.email.message}</p>
               )}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="Enter your password"
-                  {...register("password")}
-                  aria-invalid={errors.password ? "true" : "false"}
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
-                </Button>
-              </div>
-              {errors.password && (
-                <p className="text-destructive text-sm mt-1">{errors.password.message}</p> // Corrected comment syntax
-              )}
-            </div>
+            {isLogin || !isLogin && ( // Only show password field for login or signup
+                <div className="space-y-2">
+                    <Label htmlFor="password">Password</Label>
+                    <div className="relative">
+                        <Input
+                            id="password"
+                            type={showPassword ? 'text' : 'password'}
+                            placeholder="Enter your password"
+                            {...register("password")}
+                            aria-invalid={errors.password ? "true" : "false"}
+                            disabled={loading} // Disable during loading
+                        />
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                            onClick={() => setShowPassword(!showPassword)}
+                            disabled={loading} // Disable during loading
+                        >
+                            {showPassword ? (
+                                <EyeOff className="h-4 w-4" />
+                            ) : (
+                                <Eye className="h-4 w-4" />
+                            )}
+                        </Button>
+                    </div>
+                    {errors.password && (
+                        <p className="text-destructive text-sm mt-1">{errors.password.message}</p>
+                    )}
+                </div>
+            )}
+
 
             {isLogin && (
               <div className="text-right">
@@ -172,6 +221,7 @@ const Auth = () => {
                   variant="link"
                   className="text-sm text-muted-foreground hover:text-primary p-0 h-auto"
                   onClick={handleForgotPassword}
+                  disabled={loading} // Disable during loading
                 >
                   Forgot password?
                 </Button>
@@ -188,7 +238,7 @@ const Auth = () => {
               type="button"
               onClick={() => {
                 setIsLogin(!isLogin);
-                form.reset();
+                reset({ email: '', password: '' }); // Reset form fields and errors when switching
               }}
               className="text-sm text-muted-foreground hover:text-primary"
             >
