@@ -64,17 +64,17 @@ const MuscleTracker = () => {
   const previous = measurementHistory[1];
 
   const measurements_display = [
-    { name: 'Chest', value: current?.chest, color: 'from-blue-500 to-cyan-500', bgColor: 'bg-blue-500/10' },
-    { name: 'Biceps', value: current?.biceps, color: 'from-purple-500 to-pink-500', bgColor: 'bg-purple-500/10' },
-    { name: 'Waist', value: current?.waist, color: 'from-green-500 to-emerald-500', bgColor: 'bg-green-500/10' },
-    { name: 'Thighs', value: current?.thighs, color: 'from-orange-500 to-red-500', bgColor: 'bg-orange-500/10' }
+    { name: 'Chest', value: current?.chest, color: 'text-blue-600' },
+    { name: 'Biceps', value: current?.biceps, color: 'text-purple-600' },
+    { name: 'Waist', value: current?.waist, color: 'text-green-600' },
+    { name: 'Thighs', value: current?.thighs, color: 'text-orange-600' }
   ];
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <Card className="glass border border-white/10 hover-lift tech-border">
+      <Card className="hover:shadow-lg transition-shadow">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 font-mono gradient-text">
+          <CardTitle className="flex items-center gap-2">
             <Dumbbell className="h-5 w-5" />
             Muscle Analytics
           </CardTitle>
@@ -83,15 +83,15 @@ const MuscleTracker = () => {
           <div className="grid grid-cols-2 gap-4">
             {measurements_display.map((measurement, index) => (
               <div key={index} className="space-y-2">
-                <div className={`text-center p-4 glass border border-white/10 rounded-lg hover-lift ${measurement.bgColor}`}>
-                  <div className={`text-2xl font-bold font-mono bg-gradient-to-r ${measurement.color} bg-clip-text text-transparent`}>
+                <div className="text-center p-4 border rounded-lg hover:shadow-md transition-shadow">
+                  <div className={`text-2xl font-bold ${measurement.color}`}>
                     {measurement.value} cm
                   </div>
-                  <div className="text-sm text-slate-400 font-mono uppercase tracking-wider">
+                  <div className="text-sm text-muted-foreground">
                     {measurement.name}
                   </div>
                   {previous && (
-                    <Badge variant="outline" className="mt-2 font-mono border-white/20">
+                    <Badge variant="outline" className="mt-2">
                       {getChange(measurement.value, 
                         measurement.name === 'Chest' ? previous.chest :
                         measurement.name === 'Biceps' ? previous.biceps :
@@ -99,10 +99,6 @@ const MuscleTracker = () => {
                       )} cm
                     </Badge>
                   )}
-                  {/* Progress visualization */}
-                  <div className="mt-2 w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
-                    <div className={`h-full bg-gradient-to-r ${measurement.color} data-bar`} style={{ width: '70%' }}></div>
-                  </div>
                 </div>
               </div>
             ))}
@@ -110,9 +106,9 @@ const MuscleTracker = () => {
         </CardContent>
       </Card>
 
-      <Card className="glass border border-white/10 hover-lift tech-border">
+      <Card className="hover:shadow-lg transition-shadow">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 font-mono gradient-text">
+          <CardTitle className="flex items-center gap-2">
             <Plus className="h-5 w-5" />
             Log Measurements
           </CardTitle>
@@ -121,7 +117,7 @@ const MuscleTracker = () => {
           <div className="grid grid-cols-2 gap-4">
             {Object.entries(measurements).map(([key, value]) => (
               <div key={key} className="space-y-2">
-                <Label htmlFor={key} className="font-mono text-slate-400 capitalize">
+                <Label htmlFor={key} className="capitalize">
                   {key} (cm)
                 </Label>
                 <Input
@@ -131,16 +127,12 @@ const MuscleTracker = () => {
                   placeholder={key === 'chest' ? '95.0' : key === 'biceps' ? '35.0' : key === 'waist' ? '82.0' : '55.0'}
                   value={value}
                   onChange={(e) => handleInputChange(key, e.target.value)}
-                  className="glass border-white/10 focus:border-purple-400 font-mono"
                 />
               </div>
             ))}
           </div>
           
-          <Button 
-            onClick={addMeasurement} 
-            className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 font-mono neon-glow-purple"
-          >
+          <Button onClick={addMeasurement} className="w-full">
             <Plus className="h-4 w-4 mr-2" />
             Save Measurements
           </Button>

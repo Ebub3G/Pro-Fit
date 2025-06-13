@@ -34,15 +34,15 @@ const WeightTracker = () => {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <Card className="glass border border-white/10 hover-lift tech-border">
+      <Card className="hover:shadow-lg transition-shadow">
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2 font-mono">
-              <Scale className="h-5 w-5 text-blue-400" />
-              <span className="gradient-text">Weight Analytics</span>
+            <CardTitle className="flex items-center gap-2">
+              <Scale className="h-5 w-5 text-primary" />
+              Weight Analytics
             </CardTitle>
             {!isPro && (
-              <Badge variant="outline" className="text-xs font-mono border-amber-500/30 text-amber-400">
+              <Badge variant="outline" className="text-xs">
                 Last {freeDataLimit} days
               </Badge>
             )}
@@ -50,12 +50,12 @@ const WeightTracker = () => {
         </CardHeader>
         <CardContent>
           {!isPro && (
-            <div className="mb-4 p-4 glass border border-amber-500/30 rounded-lg">
+            <div className="mb-4 p-4 border border-yellow-500/30 rounded-lg bg-yellow-500/5">
               <div className="flex items-center gap-2 mb-2">
-                <TrendingUp className="h-4 w-4 text-amber-400" />
-                <span className="text-sm font-medium text-amber-300 font-mono">Limited Historical Data</span>
+                <TrendingUp className="h-4 w-4 text-yellow-600" />
+                <span className="text-sm font-medium text-yellow-700">Limited Historical Data</span>
               </div>
-              <p className="text-xs text-amber-400/70 font-mono">
+              <p className="text-xs text-yellow-600">
                 Upgrade to Pro to view complete weight history and advanced analytics.
               </p>
             </div>
@@ -66,31 +66,26 @@ const WeightTracker = () => {
               <AreaChart data={displayData}>
                 <defs>
                   <linearGradient id="weightGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#3B82F6" stopOpacity={0.05}/>
+                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0.05}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} />
+                <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                 <XAxis 
                   dataKey="date" 
                   tickFormatter={(value) => new Date(value).toLocaleDateString()}
-                  tick={{ fontSize: 11, fill: '#94A3B8', fontFamily: 'monospace' }}
-                  axisLine={{ stroke: '#475569' }}
+                  className="text-xs"
                 />
                 <YAxis 
                   domain={['dataMin - 1', 'dataMax + 1']}
                   tickFormatter={(value) => `${value} kg`}
-                  tick={{ fontSize: 11, fill: '#94A3B8', fontFamily: 'monospace' }}
-                  axisLine={{ stroke: '#475569' }}
+                  className="text-xs"
                 />
                 <Tooltip 
                   contentStyle={{
-                    backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                    border: '1px solid rgba(59, 130, 246, 0.3)',
-                    borderRadius: '8px',
-                    backdropFilter: 'blur(12px)',
-                    color: '#E2E8F0',
-                    fontFamily: 'monospace'
+                    backgroundColor: 'hsl(var(--background))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px'
                   }}
                   labelFormatter={(value) => new Date(value).toLocaleDateString()}
                   formatter={(value) => [`${value} kg`, 'Weight']}
@@ -98,11 +93,10 @@ const WeightTracker = () => {
                 <Area
                   type="monotone"
                   dataKey="weight"
-                  stroke="#3B82F6"
-                  strokeWidth={3}
+                  stroke="hsl(var(--primary))"
+                  strokeWidth={2}
                   fill="url(#weightGradient)"
-                  dot={{ fill: '#3B82F6', strokeWidth: 2, r: 5, stroke: '#1E293B' }}
-                  activeDot={{ r: 7, fill: '#60A5FA', stroke: '#3B82F6', strokeWidth: 2 }}
+                  dot={{ fill: 'hsl(var(--primary))', strokeWidth: 2, r: 4 }}
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -114,7 +108,7 @@ const WeightTracker = () => {
                 variant="outline" 
                 size="sm"
                 onClick={() => setTier('pro')}
-                className="border-amber-500/30 text-amber-400 hover:bg-amber-500/10 glass font-mono"
+                className="border-yellow-500/30 text-yellow-600 hover:bg-yellow-500/10"
               >
                 <Crown className="h-3 w-3 mr-1" />
                 Upgrade for Full History
@@ -124,16 +118,16 @@ const WeightTracker = () => {
         </CardContent>
       </Card>
 
-      <Card className="glass border border-white/10 hover-lift tech-border">
+      <Card className="hover:shadow-lg transition-shadow">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 font-mono gradient-text">
+          <CardTitle className="flex items-center gap-2">
             <Plus className="h-5 w-5" />
             Log Weight
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="weight" className="font-mono text-slate-400">Weight (kg)</Label>
+            <Label htmlFor="weight">Weight (kg)</Label>
             <Input
               id="weight"
               type="number"
@@ -141,26 +135,22 @@ const WeightTracker = () => {
               placeholder="Enter your weight"
               value={weight}
               onChange={(e) => setWeight(e.target.value)}
-              className="glass border-white/10 focus:border-blue-400 font-mono text-lg"
             />
           </div>
-          <Button 
-            onClick={addWeightEntry} 
-            className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 font-mono neon-glow-blue"
-          >
+          <Button onClick={addWeightEntry} className="w-full">
             <Plus className="h-4 w-4 mr-2" />
             Add Weight Entry
           </Button>
 
           <div className="mt-6">
-            <h4 className="font-semibold mb-3 font-mono text-slate-300">Recent Entries</h4>
+            <h4 className="font-semibold mb-3">Recent Entries</h4>
             <div className="space-y-2">
               {weightData.slice(-3).reverse().map((entry, index) => (
-                <div key={index} className="flex justify-between items-center p-3 glass border border-white/10 rounded-lg hover-lift">
-                  <span className="text-sm text-slate-400 font-mono">
+                <div key={index} className="flex justify-between items-center p-3 border rounded-lg">
+                  <span className="text-sm text-muted-foreground">
                     {new Date(entry.date).toLocaleDateString()}
                   </span>
-                  <span className="font-medium font-mono text-blue-400">{entry.weight} kg</span>
+                  <span className="font-medium">{entry.weight} kg</span>
                 </div>
               ))}
             </div>
