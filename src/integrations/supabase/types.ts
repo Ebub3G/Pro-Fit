@@ -9,157 +9,123 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      user_weights: { // New table for weight tracking
+      user_muscle_measurements: {
         Row: {
-          id: string // UUID for primary key
-          user_id: string // Foreign key to auth.users
-          date: string // Date of the weight entry
-          weight: number // The recorded weight
-          created_at: string // Timestamp
+          biceps: number | null
+          chest: number | null
+          created_at: string
+          date: string
+          id: string
+          thighs: number | null
+          user_id: string
+          waist: number | null
         }
         Insert: {
-          id?: string
-          user_id: string
-          date: string
-          weight: number
+          biceps?: number | null
+          chest?: number | null
           created_at?: string
+          date: string
+          id?: string
+          thighs?: number | null
+          user_id: string
+          waist?: number | null
         }
         Update: {
-          id?: string
-          user_id?: string
+          biceps?: number | null
+          chest?: number | null
+          created_at?: string
           date?: string
-          weight?: number
-          created_at?: string
+          id?: string
+          thighs?: number | null
+          user_id?: string
+          waist?: number | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "user_weights_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
-      user_nutrition_logs: { // New table for nutrition logs
+      user_nutrition_logs: {
         Row: {
-          id: string
-          user_id: string
-          name: string
           calories: number
-          protein: number
           carbs: number
-          fat: number
           created_at: string
+          fat: number
+          id: string
+          name: string
+          protein: number
+          user_id: string
         }
         Insert: {
-          id?: string
-          user_id: string
-          name: string
           calories: number
-          protein: number
           carbs: number
-          fat: number
           created_at?: string
+          fat: number
+          id?: string
+          name: string
+          protein: number
+          user_id: string
         }
         Update: {
-          id?: string
-          user_id?: string
-          name?: string
           calories?: number
-          protein?: number
           carbs?: number
-          fat?: number
           created_at?: string
+          fat?: number
+          id?: string
+          name?: string
+          protein?: number
+          user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "user_nutrition_logs_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
-      user_workout_logs: { // New table for workout logs
+      user_weights: {
         Row: {
+          created_at: string
+          date: string
           id: string
           user_id: string
-          date: string
-          duration: number
-          exercises: Json // JSONB type to store exercise details
-          created_at: string
+          weight: number
         }
         Insert: {
+          created_at?: string
+          date: string
           id?: string
           user_id: string
+          weight: number
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          user_id?: string
+          weight?: number
+        }
+        Relationships: []
+      }
+      user_workout_logs: {
+        Row: {
+          created_at: string
           date: string
           duration: number
           exercises: Json
+          id: string
+          user_id: string
+        }
+        Insert: {
           created_at?: string
+          date: string
+          duration: number
+          exercises: Json
+          id?: string
+          user_id: string
         }
         Update: {
-          id?: string
-          user_id?: string
+          created_at?: string
           date?: string
           duration?: number
           exercises?: Json
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_workout_logs_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      user_muscle_measurements: { // New table for muscle measurements
-        Row: {
-          id: string
-          user_id: string
-          date: string
-          chest: number | null
-          biceps: number | null
-          waist: number | null
-          thighs: number | null
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          date: string
-          chest?: number | null
-          biceps?: number | null
-          waist?: number | null
-          thighs?: number | null
-          created_at?: string
-        }
-        Update: {
           id?: string
           user_id?: string
-          date?: string
-          chest?: number | null
-          biceps?: number | null
-          waist?: number | null
-          thighs?: number | null
-          created_at?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "user_muscle_measurements_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
-      // Keep existing tables if any, or remove if not used.
-      [_ in never]: never
     }
     Views: {
       [_ in never]: never
@@ -285,4 +251,4 @@ export const Constants = {
   public: {
     Enums: {},
   },
-} as const;
+} as const
