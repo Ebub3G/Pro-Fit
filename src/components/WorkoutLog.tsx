@@ -6,12 +6,27 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Dumbbell } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext'; // New Import
-import { supabase } from '@/integrations/supabase/client'; // New Import
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'; // New Import
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+
+// Define proper types for workout data
+interface Exercise {
+  name: string;
+  sets: number;
+  reps: number;
+  weight: number;
+}
+
+interface WorkoutSession {
+  id: string;
+  date: string;
+  duration: number;
+  exercises: Exercise[];
+}
 
 const WorkoutLog = () => {
-  const { user } = useAuth(); // Get current user
+  const { user } = useAuth();
   const [workout, setWorkout] = useState({
     exercise: '',
     sets: '',
@@ -20,30 +35,35 @@ const WorkoutLog = () => {
     duration: ''
   });
 
-  const [currentSessionExercises, setCurrentSessionExercises] = useState([]); // Renamed for clarity
-  const queryClient = useQueryClient(); // Initialize query client
+  const [currentSessionExercises, setCurrentSessionExercises] = useState<Exercise[]>([]);
+  const queryClient = useQueryClient();
 
   // Function to fetch workout history from Supabase
-  const fetchWorkoutHistory = async () => {
+  const fetchWorkoutHistory = async (): Promise<WorkoutSession[]> => {
     if (!user) return [];
     const { data, error } = await supabase
       .from('user_workout_logs')
       .select('id, date, duration, exercises')
       .eq('user_id', user.id)
-      .order('date', { ascending: false }); // Order by date descending
+      .order('date', { ascending: false });
 
     if (error) {
       console.error('Error fetching workout history:', error);
       return [];
     }
-    return data;
+    
+    // Type cast the exercises from Json to Exercise[]
+    return data.map(session => ({
+      ...session,
+      exercises: session.exercises as Exercise[]
+    }));
   };
 
   // React Query hook for fetching data
   const { data: workoutHistory = [], isLoading, isError } = useQuery({
-    queryKey: ['workoutHistory', user?.id], // Query key includes user ID
+    queryKey: ['workoutHistory', user?.id],
     queryFn: fetchWorkoutHistory,
-    enabled: !!user, // Only run query if user is logged in
+    enabled: !!user,
   });
 
   // Mutation for adding a new workout session
@@ -56,7 +76,7 @@ const WorkoutLog = () => {
           user_id: user.id,
           date: newWorkoutSession.date,
           duration: newWorkoutSession.duration,
-          exercises: newWorkoutSession.exercises // Supabase automatically handles JSONB for array of objects
+          exercises: newWorkoutSession.exercises
         })
         .select();
 
@@ -64,9 +84,9 @@ const WorkoutLog = () => {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['workoutHistory', user?.id] }); // Invalidate and refetch
-      setCurrentSessionExercises([]); // Clear current session
-      setWorkout({ exercise: '', sets: '', reps: '', weight: '', duration: '' }); // Clear inputs
+      queryClient.invalidateQueries({ queryKey: ['workoutHistory', user?.id] });
+      setCurrentSessionExercises([]);
+      setWorkout({ exercise: '', sets: '', reps: '', weight: '', duration: '' });
     },
     onError: (error) => {
       console.error('Error finishing workout:', error);
@@ -90,7 +110,7 @@ const WorkoutLog = () => {
 
       setCurrentSessionExercises(prev => [...prev, newExercise]);
 
-      setWorkout(prev => ({ ...prev, exercise: '', sets: '', reps: '', weight: '' })); // Clear exercise-specific inputs
+      setWorkout(prev => ({ ...prev, exercise: '', sets: '', reps: '', weight: '' }));
     }
   };
 
@@ -143,7 +163,7 @@ const WorkoutLog = () => {
               <Select
                 value={workout.exercise}
                 onValueChange={(value) => setWorkout(prev => ({ ...prev, exercise: value }))}
-                disabled={addWorkoutMutation.isPending || !user} // Disable if saving or no user
+                disabled={addWorkoutMutation.isPending || !user}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select exercise" />

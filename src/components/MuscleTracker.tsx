@@ -5,19 +5,19 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dumbbell, Plus } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext'; // New Import
-import { supabase } from '@/integrations/supabase/client'; // New Import
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'; // New Import
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 const MuscleTracker = () => {
-  const { user } = useAuth(); // Get current user from AuthContext
+  const { user } = useAuth();
   const [measurements, setMeasurements] = useState({
     chest: '',
     biceps: '',
     waist: '',
     thighs: ''
   });
-  const queryClient = useQueryClient(); // Initialize query client
+  const queryClient = useQueryClient();
 
   // Function to fetch muscle measurement data from Supabase
   const fetchMeasurementsData = async () => {
@@ -26,7 +26,7 @@ const MuscleTracker = () => {
       .from('user_muscle_measurements')
       .select('date, chest, biceps, waist, thighs')
       .eq('user_id', user.id)
-      .order('date', { ascending: false }); // Order by date descending for most recent first
+      .order('date', { ascending: false });
 
     if (error) {
       console.error('Error fetching muscle measurement data:', error);
@@ -37,9 +37,9 @@ const MuscleTracker = () => {
 
   // React Query hook for fetching data
   const { data: measurementHistory = [], isLoading, isError } = useQuery({
-    queryKey: ['muscleMeasurements', user?.id], // Query key includes user ID
+    queryKey: ['muscleMeasurements', user?.id],
     queryFn: fetchMeasurementsData,
-    enabled: !!user, // Only run query if user is logged in
+    enabled: !!user,
   });
 
   // Mutation for adding new measurement entry
@@ -55,12 +55,11 @@ const MuscleTracker = () => {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['muscleMeasurements', user?.id] }); // Invalidate and refetch data
-      setMeasurements({ chest: '', biceps: '', waist: '', thighs: '' }); // Clear inputs
+      queryClient.invalidateQueries({ queryKey: ['muscleMeasurements', user?.id] });
+      setMeasurements({ chest: '', biceps: '', waist: '', thighs: '' });
     },
     onError: (error) => {
       console.error('Error saving measurements:', error);
-      // You could add a toast notification here
     },
   });
 
@@ -73,19 +72,16 @@ const MuscleTracker = () => {
 
   const handleAddMeasurement = () => {
     if (!user) {
-      // You might want to show a toast or redirect to login
       console.warn("User not authenticated for adding measurements.");
       return;
     }
 
     const today = new Date().toISOString().split('T')[0];
-    // Use current values from input, or fallback to previous if input is empty
     const currentChest = measurements.chest !== '' ? parseFloat(measurements.chest) : (measurementHistory[0]?.chest || null);
     const currentBiceps = measurements.biceps !== '' ? parseFloat(measurements.biceps) : (measurementHistory[0]?.biceps || null);
     const currentWaist = measurements.waist !== '' ? parseFloat(measurements.waist) : (measurementHistory[0]?.waist || null);
     const currentThighs = measurements.thighs !== '' ? parseFloat(measurements.thighs) : (measurementHistory[0]?.thighs || null);
 
-    // Only proceed if at least one field has a new or existing valid number
     if (
       (measurements.chest !== '' && !isNaN(currentChest)) ||
       (measurements.biceps !== '' && !isNaN(currentBiceps)) ||
@@ -101,7 +97,6 @@ const MuscleTracker = () => {
       });
     } else {
       console.warn("No valid measurements entered to save.");
-      // You might want to show a toast to the user
     }
   };
 
@@ -192,14 +187,14 @@ const MuscleTracker = () => {
                   type="number"
                   step="0.1"
                   placeholder={
-                    key === 'chest' ? (measurementHistory[0]?.chest || '95.0') :
-                    key === 'biceps' ? (measurementHistory[0]?.biceps || '35.0') :
-                    key === 'waist' ? (measurementHistory[0]?.waist || '82.0') :
-                    (measurementHistory[0]?.thighs || '55.0')
+                    key === 'chest' ? (measurementHistory[0]?.chest?.toString() || '95.0') :
+                    key === 'biceps' ? (measurementHistory[0]?.biceps?.toString() || '35.0') :
+                    key === 'waist' ? (measurementHistory[0]?.waist?.toString() || '82.0') :
+                    (measurementHistory[0]?.thighs?.toString() || '55.0')
                   }
                   value={value}
                   onChange={(e) => handleInputChange(key, e.target.value)}
-                  disabled={addMeasurementMutation.isPending || !user} // Disable if loading or no user
+                  disabled={addMeasurementMutation.isPending || !user}
                 />
               </div>
             ))}
@@ -208,7 +203,7 @@ const MuscleTracker = () => {
           <Button
             onClick={handleAddMeasurement}
             className="w-full"
-            disabled={addMeasurementMutation.isPending || !user || Object.values(measurements).every(val => val === '')} // Disable if loading, no user, or no input
+            disabled={addMeasurementMutation.isPending || !user || Object.values(measurements).every(val => val === '')}
           >
             {addMeasurementMutation.isPending ? 'Saving...' : (
               <>
