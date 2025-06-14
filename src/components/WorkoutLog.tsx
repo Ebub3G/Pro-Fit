@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -52,10 +53,10 @@ const WorkoutLog = () => {
       return [];
     }
     
-    // Type cast the exercises from Json to Exercise[]
+    // Properly handle the Json to Exercise[] conversion
     return data.map(session => ({
       ...session,
-      exercises: session.exercises as Exercise[]
+      exercises: (session.exercises as unknown) as Exercise[]
     }));
   };
 
