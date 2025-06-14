@@ -1,11 +1,12 @@
 
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Activity, User, Mail, Calendar, LogOut, Moon, Sun } from 'lucide-react';
+import { Activity, User, Mail, Calendar, LogOut, Moon, Sun, Home } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 
 const Profile = () => {
@@ -24,6 +25,12 @@ const Profile = () => {
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold">Profile</h1>
           <div className="flex items-center space-x-2">
+            <Link to="/">
+              <Button variant="outline" size="sm">
+                <Home className="h-4 w-4 mr-2" />
+                Home
+              </Button>
+            </Link>
             <Button
               variant="outline"
               size="icon"
