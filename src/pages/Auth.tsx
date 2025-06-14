@@ -75,6 +75,43 @@ const Auth = () => {
     return /^\+[1-9]\d{1,14}$/.test(value.replace(/[\s\-\(\)]/g, ''));
   };
 
+  const getErrorMessage = (error: any, isEmail: boolean, isSignUp: boolean) => {
+    const errorMessage = error.message.toLowerCase();
+    
+    // Handle duplicate user errors
+    if (errorMessage.includes('user already registered') || 
+        errorMessage.includes('email already registered') ||
+        errorMessage.includes('phone already registered') ||
+        errorMessage.includes('already registered')) {
+      const accountType = isEmail ? 'email address' : 'phone number';
+      return `An account with this ${accountType} already exists. Please try signing in instead.`;
+    }
+    
+    // Handle invalid credentials for login
+    if (errorMessage.includes('invalid login credentials') || 
+        errorMessage.includes('invalid credentials')) {
+      return 'Invalid credentials. Please check your email/phone and password.';
+    }
+    
+    // Handle unconfirmed email
+    if (errorMessage.includes('email not confirmed')) {
+      return 'Please check your email and click the confirmation link before signing in.';
+    }
+    
+    // Handle weak password
+    if (errorMessage.includes('password') && errorMessage.includes('weak')) {
+      return 'Password is too weak. Please use at least 6 characters with a mix of letters and numbers.';
+    }
+    
+    // Handle invalid phone format
+    if (errorMessage.includes('unable to validate phone number')) {
+      return 'Invalid phone number format. Please use international format (e.g., +1234567890).';
+    }
+    
+    // Default to original error message
+    return error.message;
+  };
+
   const onSubmit = async (data: AuthFormValues) => {
     setLoading(true);
 
@@ -115,9 +152,10 @@ const Auth = () => {
       }
 
       if (result.error) {
+        const friendlyMessage = getErrorMessage(result.error, isEmail, !isLogin);
         toast({
           title: "Authentication Error",
-          description: result.error.message,
+          description: friendlyMessage,
           variant: "destructive",
         });
       } else if (!isLogin) {
