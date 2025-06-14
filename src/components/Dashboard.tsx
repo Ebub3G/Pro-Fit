@@ -5,6 +5,8 @@ import WeightTracker from './WeightTracker';
 import MuscleTracker from './MuscleTracker';
 import NutritionLog from './NutritionLog';
 import WorkoutLog from './WorkoutLog';
+import GoalTracker from './GoalTracker';
+import RecommendationEngine from './RecommendationEngine';
 import PremiumFeature from './PremiumFeature';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useTier } from '@/contexts/TierContext';
@@ -36,13 +38,19 @@ const Dashboard = () => {
         )}
       </div>
 
-      <Tabs defaultValue="weight" className="mt-8">
-        <TabsList className="grid w-full grid-cols-4">
+      <Tabs defaultValue="goals" className="mt-8">
+        <TabsList className="grid w-full grid-cols-6">
+          <TabsTrigger value="goals">Goals</TabsTrigger>
           <TabsTrigger value="weight">Weight</TabsTrigger>
           <TabsTrigger value="muscle">Muscle</TabsTrigger>
           <TabsTrigger value="nutrition">Nutrition</TabsTrigger>
           <TabsTrigger value="workouts">Workouts</TabsTrigger>
+          <TabsTrigger value="recommendations">AI Coach</TabsTrigger>
         </TabsList>
+        
+        <TabsContent value="goals" className="mt-6">
+          <GoalTracker />
+        </TabsContent>
         
         <TabsContent value="weight" className="mt-6">
           <WeightTracker />
@@ -76,6 +84,10 @@ const Dashboard = () => {
               <WorkoutLog />
             </PremiumFeature>
           )}
+        </TabsContent>
+
+        <TabsContent value="recommendations" className="mt-6">
+          <RecommendationEngine />
         </TabsContent>
       </Tabs>
     </div>
