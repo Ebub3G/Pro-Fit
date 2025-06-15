@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -28,17 +27,28 @@ interface MuscleEntry {
   thighs: number | null;
 }
 
+interface UserProfile {
+  height_cm: number | null;
+}
+
+interface UserData {
+  goals: Goal[];
+  weights: WeightEntry[];
+  muscle: MuscleEntry[];
+  profile: UserProfile | null;
+}
+
 const RecommendationEngine = () => {
   const { user } = useAuth();
   const { handleError } = useErrorHandler();
   const [recommendations, setRecommendations] = useState<string[]>([]);
   const [autoRefresh, setAutoRefresh] = useState(true);
 
-  const fetchUserData = async () => {
+  const fetchUserData = async (): Promise<UserData | null> => {
     if (!user) return null;
 
     try {
-      const [goalsResponse, weightsResponse, muscleResponse] = await Promise.all([
+      const [goalsResponse, weightsResponse, muscleResponse, profileResponse] = await Promise.all([
         supabase
           .from('user_goals')
           .select('goal_type, target_weight, current_progress')
@@ -55,13 +65,24 @@ const RecommendationEngine = () => {
           .select('chest, biceps, waist, thighs')
           .eq('user_id', user.id)
           .order('date', { ascending: false })
-          .limit(5)
+          .limit(5),
+        supabase
+          .from('profiles')
+          .select('height_cm')
+          .eq('id', user.id)
+          .maybeSingle()
       ]);
+
+      if (goalsResponse.error) throw goalsResponse.error;
+      if (weightsResponse.error) throw weightsResponse.error;
+      if (muscleResponse.error) throw muscleResponse.error;
+      if (profileResponse.error) throw profileResponse.error;
 
       return {
         goals: goalsResponse.data || [],
         weights: weightsResponse.data || [],
-        muscle: muscleResponse.data || []
+        muscle: muscleResponse.data || [],
+        profile: profileResponse.data
       };
     } catch (error) {
       handleError(error, 'Failed to fetch user data for recommendations');
@@ -73,42 +94,73 @@ const RecommendationEngine = () => {
     queryKey: ['user-data-for-recommendations', user?.id],
     queryFn: fetchUserData,
     enabled: !!user,
-    refetchInterval: autoRefresh ? 30000 : false, // Auto-refresh every 30 seconds
+    refetchInterval: autoRefresh ? 30000 : false,
   });
 
   const generateRecommendations = () => {
     if (!userData) return;
 
-    const { goals, weights, muscle } = userData;
-    const newRecommendations: string[] = [];
+    const { goals, weights, muscle, profile } = userData;
+    let newRecommendations: string[] = [];
+    let bmi = 0;
+    let bmiCategory = '';
+
+    if (profile?.height_cm && weights.length > 0) {
+      const heightM = profile.height_cm / 100;
+      const latestWeight = weights[0].weight;
+      bmi = latestWeight / (heightM * heightM);
+      
+      let bmiRecommendation = '';
+
+      if (bmi < 18.5) {
+        bmiCategory = 'underweight';
+        bmiRecommendation = 'Consider a balanced diet for healthy weight gain.';
+      } else if (bmi < 25) {
+        bmiCategory = 'in the healthy range';
+        bmiRecommendation = 'Keep up the great work maintaining your health!';
+      } else if (bmi < 30) {
+        bmiCategory = 'overweight';
+        bmiRecommendation = 'Focus on a balanced diet and regular exercise for weight management.';
+      } else {
+        bmiCategory = 'obese';
+        bmiRecommendation = 'It is recommended to create a sustainable workout and diet plan. Consulting a professional can be beneficial.';
+      }
+      
+      newRecommendations.push(`💡 Your BMI is ${bmi.toFixed(1)} (${bmiCategory}). ${bmiRecommendation}`);
+    }
 
     // Goal-based recommendations
     goals.forEach((goal: Goal) => {
       switch (goal.goal_type) {
         case 'lose_weight':
-          newRecommendations.push('💪 Focus on cardio exercises like running, cycling, or swimming');
-          newRecommendations.push('🥗 Maintain a caloric deficit with nutritious, whole foods');
-          if (weights.length >= 2) {
-            const recentTrend = weights[0].weight - weights[1].weight;
-            if (recentTrend > 0) {
-              newRecommendations.push('📉 Consider adjusting your diet as weight has increased recently');
-            }
+          newRecommendations.push('🥗 Maintain a caloric deficit with nutritious, whole foods.');
+          if (bmi >= 25) {
+            newRecommendations.push('💪 Combine strength training with cardio to maximize fat loss while preserving muscle.');
+          } else {
+            newRecommendations.push('💪 Focus on cardio exercises like running or swimming.');
+          }
+          if (weights.length >= 2 && (weights[0].weight - weights[1].weight > 0)) {
+            newRecommendations.push('📉 Consider adjusting your diet as weight has increased recently');
           }
           break;
         case 'gain_weight':
-          newRecommendations.push('🏋️ Incorporate strength training to build muscle mass');
-          newRecommendations.push('🍖 Increase protein intake and eat in a caloric surplus');
+          newRecommendations.push('🍖 Increase protein intake and eat in a caloric surplus.');
+          if (bmi < 18.5) {
+            newRecommendations.push('🏋️ Focus on compound exercises like squats and deadlifts to build overall mass.');
+          } else {
+            newRecommendations.push('🏋️ Incorporate strength training to build muscle mass.');
+          }
           break;
         case 'gain_muscle':
-          newRecommendations.push('💪 Focus on progressive overload in resistance training');
-          newRecommendations.push('🥩 Aim for 1.6-2.2g protein per kg of body weight');
+          newRecommendations.push('🥩 Aim for 1.6-2.2g protein per kg of body weight.');
+          newRecommendations.push('💪 Focus on progressive overload in your resistance training for muscle growth.');
           if (muscle.length > 0) {
             newRecommendations.push('📏 Track muscle measurements to monitor growth progress');
           }
           break;
         case 'maintain_weight':
-          newRecommendations.push('⚖️ Balance cardio and strength training for body composition');
-          newRecommendations.push('🎯 Focus on consistency in both diet and exercise');
+          newRecommendations.push('⚖️ Balance cardio and strength training for a healthy body composition.');
+          newRecommendations.push('🎯 Focus on consistency in both diet and exercise to maintain your current weight.');
           break;
       }
     });
@@ -132,8 +184,8 @@ const RecommendationEngine = () => {
       newRecommendations.push('💧 Stay hydrated and get adequate sleep for recovery');
     }
 
-    // Limit to 5 recommendations for better readability
-    setRecommendations(newRecommendations.slice(0, 5));
+    // Use a Set to remove duplicate recommendations before slicing
+    setRecommendations(Array.from(new Set(newRecommendations)).slice(0, 5));
   };
 
   useEffect(() => {
