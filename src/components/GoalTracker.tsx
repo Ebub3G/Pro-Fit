@@ -129,6 +129,25 @@ const GoalTracker = () => {
     return Math.min((goal.current_progress / goal.target_weight) * 100, 100);
   };
 
+  const getGoalDescription = (goalType: string) => {
+    switch (goalType) {
+      case 'lose_weight':
+        return 'Focus on reducing body weight through cardio and diet';
+      case 'gain_weight':
+        return 'Increase overall body weight through strength training and nutrition';
+      case 'gain_muscle':
+        return 'Build muscle mass through resistance training and protein intake';
+      case 'maintain_weight':
+        return 'Maintain current weight while improving body composition';
+      default:
+        return '';
+    }
+  };
+
+  const requiresMuscleTracking = (goalType: string) => {
+    return goalType === 'gain_muscle';
+  };
+
   if (isLoading) {
     return (
       <Card>
@@ -177,6 +196,11 @@ const GoalTracker = () => {
                     <SelectItem value="maintain_weight">Maintain Weight</SelectItem>
                   </SelectContent>
                 </Select>
+                {newGoal.goal_type && (
+                  <p className="text-xs text-muted-foreground">
+                    {getGoalDescription(newGoal.goal_type)}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -200,6 +224,14 @@ const GoalTracker = () => {
               </div>
             </div>
 
+            {newGoal.goal_type && requiresMuscleTracking(newGoal.goal_type) && (
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  <strong>Note:</strong> Since you selected "Gain Muscle", you can track detailed muscle measurements in the Muscle Tracker section to monitor your progress more effectively.
+                </p>
+              </div>
+            )}
+
             <Button
               onClick={handleAddGoal}
               disabled={addGoalMutation.isPending || !newGoal.goal_type || !newGoal.target_weight}
@@ -221,10 +253,20 @@ const GoalTracker = () => {
                       Target: {goal.target_weight}kg
                       {goal.target_date && ` by ${new Date(goal.target_date).toLocaleDateString()}`}
                     </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {getGoalDescription(goal.goal_type)}
+                    </p>
                   </div>
-                  <Badge variant={goal.is_active ? "default" : "secondary"}>
-                    {goal.is_active ? 'Active' : 'Inactive'}
-                  </Badge>
+                  <div className="flex flex-col items-end gap-2">
+                    <Badge variant={goal.is_active ? "default" : "secondary"}>
+                      {goal.is_active ? 'Active' : 'Inactive'}
+                    </Badge>
+                    {requiresMuscleTracking(goal.goal_type) && (
+                      <Badge variant="outline" className="text-xs">
+                        Muscle Tracking Recommended
+                      </Badge>
+                    )}
+                  </div>
                 </div>
 
                 <div className="space-y-2">

@@ -51,7 +51,7 @@ const RecommendationEngine = () => {
       targetWeight: goal.target_weight || currentWeight,
       goalType: goal.goal_type,
       activityLevel: 'Intermediate',
-      muscleData: muscleResult.data?.[0],
+      muscleData: muscleResult.data?.[0] || null, // Allow null muscle data
       nutritionData: nutritionResult.data || []
     };
   };
@@ -240,13 +240,30 @@ const RecommendationEngine = () => {
       </CardHeader>
       <CardContent>
         {!userData ? (
-          <p className="text-center text-muted-foreground py-8">
-            Set up your goals and log some data to get personalized recommendations!
-          </p>
+          <div className="text-center space-y-4 py-8">
+            <p className="text-muted-foreground">
+              Set up your goals to get personalized recommendations!
+            </p>
+            <div className="text-sm text-muted-foreground space-y-2">
+              <p>To get started:</p>
+              <ul className="list-disc list-inside space-y-1">
+                <li>Add a fitness goal in the Goals tab</li>
+                <li>Log your current weight (optional but recommended)</li>
+                <li>For muscle gain goals: track muscle measurements for better recommendations</li>
+              </ul>
+            </div>
+          </div>
         ) : recommendations.length === 0 ? (
-          <p className="text-center text-muted-foreground py-8">
-            Click "Get Recommendations" to receive personalized workout and nutrition advice!
-          </p>
+          <div className="text-center space-y-4 py-8">
+            <p className="text-muted-foreground">
+              Click "Get Recommendations" to receive personalized workout and nutrition advice!
+            </p>
+            {userData.goalType === 'gain_muscle' && !userData.muscleData && (
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
+                <p><strong>Tip:</strong> Add muscle measurements in the Muscle Tracker for more precise muscle-building recommendations!</p>
+              </div>
+            )}
+          </div>
         ) : (
           <Tabs defaultValue="workout" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
