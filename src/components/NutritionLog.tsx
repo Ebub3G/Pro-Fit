@@ -1,26 +1,36 @@
+
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import PremiumFeature from './PremiumFeature';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Lightbulb, Utensils, Zap } from 'lucide-react';
+import LoadingSpinner from './LoadingSpinner';
+import { useErrorHandler } from '@/hooks/useErrorHandler';
+import { Link } from 'react-router-dom';
+
+interface Meal {
+  name: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+}
+
+interface MealPlan {
+  breakfast: Meal[];
+  lunch: Meal[];
+  dinner: Meal[];
+  snacks: Meal[];
+}
 
 const NutritionLog = () => {
   const { user } = useAuth();
-  const [foodEntry, setFoodEntry] = useState({
-    name: '',
-    calories: '',
-    protein: '',
-    carbs: '',
-    fat: ''
-  });
-
-  const queryClient = useQueryClient();
+  const { handleError } = useErrorHandler();
+  const [mealPlan, setMealPlan] = useState<MealPlan | null>(null);
 
   const goals = {
     calories: 2200,
@@ -29,255 +39,138 @@ const NutritionLog = () => {
     fat: 80
   };
 
-  const fetchNutritionLogs = async () => {
-    if (!user) return [];
-    const today = new Date().toISOString().split('T')[0];
-    const { data, error } = await supabase
-      .from('user_nutrition_logs')
-      .select('id, name, calories, protein, carbs, fat')
-      .eq('user_id', user.id)
-      .like('created_at', `${today}%`);
-
-    if (error) {
-      console.error('Error fetching nutrition logs:', error);
-      return [];
-    }
-    return data;
+  const fetchUserDataForMealPlan = async () => {
+    if (!user) return null;
+    const { data, error } = await supabase.rpc('get_user_data_for_recommendations', { p_user_id: user.id });
+    if (error) throw error;
+    return data[0];
   };
 
-  const { data: foodLog = [], isLoading, isError } = useQuery({
-    queryKey: ['nutritionLogs', user?.id, new Date().toDateString()],
-    queryFn: fetchNutritionLogs,
+  const { data: userData, isLoading: isLoadingUserData, isError: isErrorUserData } = useQuery({
+    queryKey: ['userDataForMealPlan', user?.id],
+    queryFn: fetchUserDataForMealPlan,
     enabled: !!user,
   });
 
-  const dailyIntake = foodLog.reduce(
-    (acc, entry) => ({
-      calories: acc.calories + entry.calories,
-      protein: acc.protein + entry.protein,
-      carbs: acc.carbs + entry.carbs,
-      fat: acc.fat + entry.fat,
-    }),
-    { calories: 0, protein: 0, carbs: 0, fat: 0 }
-  );
+  const mealPlanMutation = useMutation({
+    mutationFn: async (data: { goal: string; weight: number; height: number; targets: typeof goals }) => {
+      const { data: mealData, error } = await supabase.functions.invoke('meal-recommendation', {
+        body: data,
+      });
 
-  const addFoodMutation = useMutation({
-    mutationFn: async (newFood: { name: string, calories: number, protein: number, carbs: number, fat: number }) => {
-      if (!user) throw new Error('User not authenticated.');
-      const { data, error } = await supabase
-        .from('user_nutrition_logs')
-        .insert({ user_id: user.id, ...newFood })
-        .select();
-
-      if (error) throw error;
-      return data;
+      if (error) {
+        throw new Error(`Edge function error: ${error.message}`);
+      }
+      return mealData as MealPlan;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['nutritionLogs', user?.id, new Date().toDateString()] });
-      setFoodEntry({ name: '', calories: '', protein: '', carbs: '', fat: '' });
+    onSuccess: (data) => {
+      setMealPlan(data);
     },
     onError: (error) => {
-      console.error('Error adding food entry:', error);
+      handleError(error, "Failed to generate meal plan. Please try again.");
+      setMealPlan(null);
     },
   });
 
-
-  const handleAddFood = () => {
-    if (foodEntry.name && foodEntry.calories && user) {
-      addFoodMutation.mutate({
-        name: foodEntry.name,
-        calories: parseFloat(foodEntry.calories) || 0,
-        protein: parseFloat(foodEntry.protein) || 0,
-        carbs: parseFloat(foodEntry.carbs) || 0,
-        fat: parseFloat(foodEntry.fat) || 0
-      });
-    } else if (!user) {
-      console.warn("User not authenticated to add food.");
-    } else {
-      console.warn("Please fill in food name and calories.");
-    }
+  const handleGenerateMealPlan = () => {
+    if (!userData || !userData.goal || !userData.weight || !userData.height) return;
+    mealPlanMutation.mutate({
+      goal: userData.goal,
+      weight: userData.weight,
+      height: userData.height,
+      targets: goals,
+    });
   };
 
-  const getProgressColor = (current: number, goal: number) => {
-    const percentage = (current / goal) * 100;
-    if (percentage >= 90) return 'text-green-600';
-    if (percentage >= 70) return 'text-yellow-600';
-    return 'text-red-600';
-  };
-
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-full">
-        <p className="text-muted-foreground">Loading nutrition data...</p>
-      </div>
-    );
-  }
-
-  if (isError) {
-    return (
-      <div className="flex justify-center items-center h-full">
-        <p className="text-destructive">Error loading nutrition data.</p>
-      </div>
-    );
-  }
+  const renderMeal = (meal: Meal) => (
+    <div key={meal.name} className="p-3 bg-muted/50 rounded-lg">
+      <p className="font-semibold">{meal.name}</p>
+      <p className="text-sm text-muted-foreground">
+        {meal.calories} cal &bull; {meal.protein}g P &bull; {meal.carbs}g C &bull; {meal.fat}g F
+      </p>
+    </div>
+  );
 
   return (
     <PremiumFeature
-      feature="Advanced Nutrition Tracking"
-      description="Log your meals, track macros, and get detailed insights into your diet. Upgrade to Pro for unlimited logging and analysis."
+      feature="AI-Powered Meal Plans"
+      description="Get personalized daily meal plans based on your goals and BMI, complete with nutritional information. Upgrade to Pro for AI-powered meal recommendations."
     >
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Daily Nutrition Goals</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <Label>Calories</Label>
-                  <span className={`font-semibold ${getProgressColor(dailyIntake.calories, goals.calories)}`}>
-                    {dailyIntake.calories} / {goals.calories}
-                  </span>
-                </div>
-                <Progress value={(dailyIntake.calories / goals.calories) * 100} className="h-2" />
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <Label>Protein (g)</Label>
-                  <span className={`font-semibold ${getProgressColor(dailyIntake.protein, goals.protein)}`}>
-                    {dailyIntake.protein} / {goals.protein}
-                  </span>
-                </div>
-                <Progress value={(dailyIntake.protein / goals.protein) * 100} className="h-2" />
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <Label>Carbs (g)</Label>
-                  <span className={`font-semibold ${getProgressColor(dailyIntake.carbs, goals.carbs)}`}>
-                    {dailyIntake.carbs} / {goals.carbs}
-                  </span>
-                </div>
-                <Progress value={(dailyIntake.carbs / goals.carbs) * 100} className="h-2" />
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <Label>Fat (g)</Label>
-                  <span className={`font-semibold ${getProgressColor(dailyIntake.fat, goals.fat)}`}>
-                    {dailyIntake.fat} / {goals.fat}
-                  </span>
-                </div>
-                <Progress value={(dailyIntake.fat / goals.fat) * 100} className="h-2" />
-              </div>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Utensils className="h-5 w-5" />
+              <span>Daily Meal Recommendation</span>
             </div>
-
-            <div className="pt-4 border-t">
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="font-semibold">Today's Food Log</h4>
-              </div>
-              <div className="space-y-2 max-h-48 overflow-y-auto">
-                {foodLog.length > 0 ? (
-                  foodLog.map((food, index) => (
-                    <div key={food.id || index} className="flex justify-between items-center p-2 bg-muted rounded">
-                      <span className="font-medium">{food.name}</span>
-                      <Badge variant="outline">{food.calories} cal</Badge>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-muted-foreground text-sm text-center">No food logged today.</p>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Add Food</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="foodName">Food Name</Label>
-              <Input
-                id="foodName"
-                placeholder="e.g., Grilled Chicken"
-                value={foodEntry.name}
-                onChange={(e) => setFoodEntry(prev => ({ ...prev, name: e.target.value }))}
-                disabled={addFoodMutation.isPending || !user}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="calories">Calories</Label>
-                <Input
-                  id="calories"
-                  type="number"
-                  placeholder="165"
-                  value={foodEntry.calories}
-                  onChange={(e) => setFoodEntry(prev => ({ ...prev, calories: e.target.value }))}
-                  disabled={addFoodMutation.isPending || !user}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="protein">Protein (g)</Label>
-                <Input
-                  id="protein"
-                  type="number"
-                  step="0.1"
-                  placeholder="31"
-                  value={foodEntry.protein}
-                  onChange={(e) => setFoodEntry(prev => ({ ...prev, protein: e.target.value }))}
-                  disabled={addFoodMutation.isPending || !user}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="carbs">Carbs (g)</Label>
-                <Input
-                  id="carbs"
-                  type="number"
-                  step="0.1"
-                  placeholder="0"
-                  value={foodEntry.carbs}
-                  onChange={(e) => setFoodEntry(prev => ({ ...prev, carbs: e.target.value }))}
-                  disabled={addFoodMutation.isPending || !user}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="fat">Fat (g)</Label>
-                <Input
-                  id="fat"
-                  type="number"
-                  step="0.1"
-                  placeholder="3.6"
-                  value={foodEntry.fat}
-                  onChange={(e) => setFoodEntry(prev => ({ ...prev, fat: e.target.value }))}
-                  disabled={addFoodMutation.isPending || !user}
-                />
-              </div>
-            </div>
-
             <Button
-              onClick={handleAddFood}
-              className="w-full"
-              disabled={addFoodMutation.isPending || !user || !foodEntry.name || !foodEntry.calories}
+              onClick={handleGenerateMealPlan}
+              disabled={mealPlanMutation.isPending || isLoadingUserData || !userData?.goal || !userData.weight || !userData.height}
             >
-              {addFoodMutation.isPending ? 'Adding...' : (
-                'Add to Food Log'
+              {mealPlanMutation.isPending ? (
+                <LoadingSpinner size="sm" />
+              ) : (
+                <>
+                  <Zap className="h-4 w-4 mr-2" />
+                  {mealPlan ? 'Regenerate' : 'Generate Plan'}
+                </>
               )}
             </Button>
-            {!user && (
-              <p className="text-sm text-muted-foreground text-center">Please log in to add food entries.</p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+          </CardTitle>
+          <CardDescription>
+            Your AI-generated meal plan for today based on your goals.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoadingUserData && <div className="flex justify-center items-center h-40"><LoadingSpinner /></div>}
+          {isErrorUserData && <Alert variant="destructive"><AlertTitle>Error</AlertTitle><AlertDescription>Could not load user data needed for recommendations.</AlertDescription></Alert>}
+
+          {!isLoadingUserData && !isErrorUserData && (!userData?.goal || !userData?.weight || !userData?.height) && (
+             <Alert>
+              <Lightbulb className="h-4 w-4" />
+              <AlertTitle>Set up your profile for recommendations!</AlertTitle>
+              <AlertDescription>
+                Please add your {' '}
+                {!userData?.height && <Link to="/profile" className="font-bold underline">height</Link>}
+                {!userData?.height && (!userData?.weight || !userData?.goal) && ', '}
+                {!userData?.weight && <span className="font-bold">weight entries</span>}
+                {(!userData?.height || !userData?.weight) && !userData?.goal && ', and '}
+                {!userData?.goal && <span className="font-bold">an active goal</span>}
+                {' '} to get personalized meal plans.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {mealPlanMutation.isPending && <div className="flex justify-center items-center h-40"><LoadingSpinner /> <p className="ml-2">Generating your meal plan...</p></div>}
+          
+          {mealPlan && !mealPlanMutation.isPending && (
+            <div className="space-y-6">
+              <div>
+                <h3 className="font-bold text-lg mb-2">Breakfast</h3>
+                <div className="space-y-2">{mealPlan.breakfast.map(renderMeal)}</div>
+              </div>
+              <div>
+                <h3 className="font-bold text-lg mb-2">Lunch</h3>
+                <div className="space-y-2">{mealPlan.lunch.map(renderMeal)}</div>
+              </div>
+              <div>
+                <h3 className="font-bold text-lg mb-2">Dinner</h3>
+                <div className="space-y-2">{mealPlan.dinner.map(renderMeal)}</div>
+              </div>
+              <div>
+                <h3 className="font-bold text-lg mb-2">Snacks</h3>
+                <div className="space-y-2">{mealPlan.snacks.map(renderMeal)}</div>
+              </div>
+            </div>
+          )}
+
+          {!mealPlan && !mealPlanMutation.isPending && userData?.goal && userData.weight && userData.height &&(
+            <div className="text-center text-muted-foreground py-10">
+              <p>Click "Generate Plan" to get your personalized meal recommendations for today.</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </PremiumFeature>
   );
 };
