@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Activity, User, Crown, Zap, Moon, Sun } from 'lucide-react';
+import { User, Crown, Zap, Moon, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useTier } from '@/contexts/TierContext';
@@ -16,8 +16,14 @@ const Navbar = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center space-x-3">
-            <Activity className="h-8 w-8 text-primary" />
-            <span className="text-xl font-bold">FitTracker.AI</span>
+            <img 
+              src={theme === 'dark' 
+                ? "/lovable-uploads/6378ad8a-dcef-458a-8023-41ff91393ca8.png" 
+                : "/lovable-uploads/8f4b558f-6815-4ad6-bbf6-55f64ea9f79b.png"
+              }
+              alt="FitTracker.AI Logo"
+              className="h-8 w-auto"
+            />
           </div>
           
           <div className="flex items-center space-x-4">
