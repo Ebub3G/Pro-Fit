@@ -22,7 +22,7 @@ const Navbar = () => {
                 : "/lovable-uploads/8f4b558f-6815-4ad6-bbf6-55f64ea9f79b.png"
               }
               alt="FitTracker.AI Logo"
-              className="h-8 w-auto"
+              className="h-12 w-auto"
             />
           </div>
           
