@@ -1,151 +1,148 @@
 
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import PremiumFeature from './PremiumFeature';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Lightbulb, Utensils, Zap } from 'lucide-react';
-import LoadingSpinner from './LoadingSpinner';
-import { useErrorHandler } from '@/hooks/useErrorHandler';
+import { Lightbulb } from 'lucide-react';
+import { useToast } from '@/components/ui/use-toast';
 import { Link } from 'react-router-dom';
+import LoadingSpinner from './LoadingSpinner';
+import { useQuery, useMutation } from '@tanstack/react-query';
 
-interface Meal {
-  name: string;
-  calories: number;
-  protein: number;
-  carbs: number;
-  fat: number;
-}
-
-interface MealPlan {
-  breakfast: Meal[];
-  lunch: Meal[];
-  dinner: Meal[];
-  snacks: Meal[];
+// 1. Define Types matching Supabase RPC result
+interface UserDataForMealPlan {
+  goal: string | null;
+  weight: number | null;
+  height: number | null;
 }
 
 const NutritionLog = () => {
   const { user } = useAuth();
-  const { handleError } = useErrorHandler();
-  const [mealPlan, setMealPlan] = useState<MealPlan | null>(null);
+  const { toast } = useToast();
+  const [mealPlan, setMealPlan] = React.useState<string | null>(null);
 
-  const goals = {
-    calories: 2200,
-    protein: 150,
-    carbs: 250,
-    fat: 80
-  };
-
-  const fetchUserDataForMealPlan = async () => {
+  // 2. Always fetch the latest user data (including height)
+  const fetchUserDataForMealPlan = async (): Promise<UserDataForMealPlan | null> => {
     if (!user) return null;
     const { data, error } = await supabase.rpc('get_user_data_for_recommendations', { p_user_id: user.id });
     if (error) {
-        console.error("Error fetching user data for meal plan:", error);
-        throw error;
+      console.error("Error fetching user data for meal plan:", error);
+      throw error;
     }
-    return (data && data.length > 0) ? data[0] : null;
+    const entry = (data && data.length > 0) ? data[0] : null;
+    // Ensure all fields are present (null if missing)
+    return entry
+      ? {
+          goal: entry.goal ?? null,
+          weight: entry.weight ?? null,
+          height: entry.height ?? null,
+        }
+      : null;
   };
 
-  const { data: userData, isLoading: isLoadingUserData, isError: isErrorUserData } = useQuery({
-    queryKey: ['userDataForMealPlan', user?.id],
+  // 3. Type userData as UserDataForMealPlan|null to avoid 'never' error
+  const {
+    data: userData,
+    isLoading: isLoadingUserData,
+    isError: isErrorUserData,
+    refetch: refetchUserData,
+  } = useQuery<UserDataForMealPlan | null>({
+    queryKey: ['user-data-for-meal-plan', user?.id],
     queryFn: fetchUserDataForMealPlan,
     enabled: !!user,
   });
 
+  // 4. Meal plan edge function
   const mealPlanMutation = useMutation({
-    mutationFn: async (data: { goal: string; weight: number; height: number; targets: typeof goals }) => {
-      const { data: mealData, error } = await supabase.functions.invoke('meal-recommendation', {
-        body: data,
+    mutationFn: async () => {
+      if (!userData) throw new Error("User data missing");
+      // Now .height is always correctly saved and loaded from DB
+      const res = await fetch('/functions/v1/meal-recommendation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          goal: userData.goal,
+          weight: userData.weight,
+          height: userData.height,
+        }),
       });
-
-      if (error) {
-        throw new Error(`Edge function error: ${error.message}`);
-      }
-      return mealData as MealPlan;
+      if (!res.ok) throw new Error(await res.text());
+      const result = await res.json();
+      return result.meal_plan as string;
     },
-    onSuccess: (data) => {
-      setMealPlan(data);
+    onSuccess: (mealPlan) => {
+      setMealPlan(mealPlan);
+      toast({ title: 'Meal Plan Ready!', description: 'Today’s meal plan was created for you.' });
     },
-    onError: (error) => {
-      handleError(error, "Failed to generate meal plan. Please try again.");
-      setMealPlan(null);
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error?.message || 'Failed to generate meal plan.' });
     },
   });
 
   const handleGenerateMealPlan = () => {
-    if (!userData || !userData.goal || !userData.weight || !userData.height) return;
-    mealPlanMutation.mutate({
-      goal: userData.goal,
-      weight: userData.weight,
-      height: userData.height,
-      targets: goals,
-    });
+    mealPlanMutation.mutate();
   };
 
-  const renderMeal = (meal: Meal) => (
-    <div key={meal.name} className="p-3 bg-muted/50 rounded-lg">
-      <p className="font-semibold">{meal.name}</p>
-      <p className="text-sm text-muted-foreground">
-        {meal.calories} cal &bull; {meal.protein}g P &bull; {meal.carbs}g C &bull; {meal.fat}g F
-      </p>
-    </div>
-  );
-
+  // Always show persisted userData.height, unless user's profile changes!
   return (
-    <PremiumFeature
-      feature="AI-Powered Meal Plans"
-      description="Get personalized daily meal plans based on your goals and BMI, complete with nutritional information. Upgrade to Pro for AI-powered meal recommendations."
-    >
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Utensils className="h-5 w-5" />
-              <span>Daily Meal Recommendation</span>
-            </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>Meal Recommendation</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="max-w-xl mx-auto space-y-4">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-muted-foreground text-sm">Get a daily meal plan based on your goal, BMI, and latest stats. <br />Macronutrient summary included!</p>
+          </div>
+          <div className="flex items-center gap-3 mb-2">
             <Button
               onClick={handleGenerateMealPlan}
-              disabled={mealPlanMutation.isPending || isLoadingUserData || !userData || !userData.goal || !userData.weight || !userData.height}
+              disabled={
+                mealPlanMutation.isPending ||
+                isLoadingUserData ||
+                !userData?.goal ||
+                userData.weight == null ||
+                userData.height == null
+              }
             >
-              {mealPlanMutation.isPending ? (
-                <LoadingSpinner size="sm" />
-              ) : (
-                <>
-                  <Zap className="h-4 w-4 mr-2" />
-                  {mealPlan ? 'Regenerate' : 'Generate Plan'}
-                </>
-              )}
+              {mealPlanMutation.isPending ? <LoadingSpinner size="sm" /> : 'Generate Plan'}
             </Button>
-          </CardTitle>
-          <CardDescription>
-            Your AI-generated meal plan for today based on your goals.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setMealPlan(null);
+                refetchUserData();
+              }}
+              disabled={isLoadingUserData}
+            >
+              Refresh Data
+            </Button>
+          </div>
           {isLoadingUserData && <div className="flex justify-center items-center h-40"><LoadingSpinner /></div>}
           {isErrorUserData && <Alert variant="destructive"><AlertTitle>Error</AlertTitle><AlertDescription>Could not load user data needed for recommendations.</AlertDescription></Alert>}
-
-          {!isLoadingUserData && !isErrorUserData && (!userData || !userData.goal || !userData.weight || !userData.height) && (
-             <Alert>
+          {(!isLoadingUserData && !isErrorUserData && (!userData?.goal || userData.weight == null || userData.height == null)) && (
+            <Alert>
               <Lightbulb className="h-4 w-4" />
               <AlertTitle>Set up your profile for recommendations!</AlertTitle>
               <AlertDescription>
                 Please complete your profile to generate a meal plan:
                 <ul className="list-disc pl-5 mt-2 space-y-1">
-                  {!userData?.height && (
+                  {userData?.height == null && (
                     <li>
                       Add your <Link to="/profile" className="font-bold underline">height</Link>.
                     </li>
                   )}
-                  {!userData?.weight && (
+                  {userData?.weight == null && (
                     <li>
                       Add a <span className="font-bold">weight entry</span> in the 'Weight' tab.
                     </li>
                   )}
-                  {!userData?.goal && (
+                  {userData?.goal == null && (
                     <li>
                       Set an <span className="font-bold">active goal</span> in the 'Goals' tab.
                     </li>
@@ -155,37 +152,29 @@ const NutritionLog = () => {
             </Alert>
           )}
 
-          {mealPlanMutation.isPending && <div className="flex justify-center items-center h-40"><LoadingSpinner /> <p className="ml-2">Generating your meal plan...</p></div>}
-          
-          {mealPlan && !mealPlanMutation.isPending && (
-            <div className="space-y-6">
-              <div>
-                <h3 className="font-bold text-lg mb-2">Breakfast</h3>
-                <div className="space-y-2">{mealPlan.breakfast.map(renderMeal)}</div>
-              </div>
-              <div>
-                <h3 className="font-bold text-lg mb-2">Lunch</h3>
-                <div className="space-y-2">{mealPlan.lunch.map(renderMeal)}</div>
-              </div>
-              <div>
-                <h3 className="font-bold text-lg mb-2">Dinner</h3>
-                <div className="space-y-2">{mealPlan.dinner.map(renderMeal)}</div>
-              </div>
-              <div>
-                <h3 className="font-bold text-lg mb-2">Snacks</h3>
-                <div className="space-y-2">{mealPlan.snacks.map(renderMeal)}</div>
-              </div>
-            </div>
+          {/* Show the meal plan if available */}
+          {mealPlan && (
+            <div className="p-4 rounded-lg border bg-gray-50 dark:bg-gray-950 mt-4 font-mono whitespace-pre-wrap text-sm">{mealPlan}</div>
           )}
 
-          {!mealPlan && !mealPlanMutation.isPending && userData && userData.goal && userData.weight && userData.height && (
+          {!mealPlan && !mealPlanMutation.isPending && userData?.goal && userData.weight != null && userData.height != null && (
             <div className="text-center text-muted-foreground py-10">
               <p>Click "Generate Plan" to get your personalized meal recommendations for today.</p>
             </div>
           )}
-        </CardContent>
-      </Card>
-    </PremiumFeature>
+
+          {/* Optionally, display the user's saved height for reference */}
+          <div className="flex items-center justify-center mt-6 text-xs text-muted-foreground">
+            {userData?.height && (
+              <span>
+                <span className="font-medium">Your saved height: </span>
+                {userData.height} cm
+              </span>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 };
 
