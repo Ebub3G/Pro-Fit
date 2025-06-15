@@ -176,6 +176,10 @@ export const useRecommendations = () => {
             newRecommendations.push('📊 Log your weight regularly to track progress');
             newRecommendations.push('💧 Stay hydrated and get adequate sleep for recovery');
         }
+        
+        if (!profile?.height_cm) {
+            newRecommendations.unshift('ADD_HEIGHT_PROMPT');
+        }
 
         setRecommendations(Array.from(new Set(newRecommendations)).slice(0, 5));
     }, [userData]);

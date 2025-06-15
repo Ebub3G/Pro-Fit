@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Brain, Target, TrendingUp, Utensils, Dumbbell } from 'lucide-react';
 import LoadingSpinner from './LoadingSpinner';
 import { useRecommendations } from '@/hooks/useRecommendations';
+import { Link } from 'react-router-dom';
 
 const RecommendationEngine = () => {
   const {
@@ -55,14 +56,31 @@ const RecommendationEngine = () => {
       <CardContent>
         <div className="space-y-3">
           {recommendations.length > 0 ? (
-            recommendations.map((rec, index) => (
-              <div
-                key={index}
-                className="p-3 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
-              >
-                <p className="text-sm font-medium">{rec}</p>
-              </div>
-            ))
+            recommendations.map((rec, index) => {
+              if (rec === 'ADD_HEIGHT_PROMPT') {
+                return (
+                  <div
+                    key={index}
+                    className="p-3 bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800 flex items-center justify-between"
+                  >
+                    <p className="text-sm font-medium">
+                      Add your height for personalized BMI-based advice.
+                    </p>
+                    <Link to="/profile">
+                      <Button variant="outline" size="sm">Go to Profile</Button>
+                    </Link>
+                  </div>
+                )
+              }
+              return (
+                <div
+                  key={index}
+                  className="p-3 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
+                >
+                  <p className="text-sm font-medium">{rec}</p>
+                </div>
+              );
+            })
           ) : (
             <div className="text-center py-8 space-y-4">
               <div className="flex justify-center gap-2 text-muted-foreground">
