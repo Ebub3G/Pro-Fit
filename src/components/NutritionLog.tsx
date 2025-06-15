@@ -1,27 +1,72 @@
-
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Lightbulb } from 'lucide-react';
+import { Lightbulb, Utensils, Egg, Beef, Apple, Hash } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { Link } from 'react-router-dom';
 import LoadingSpinner from './LoadingSpinner';
 import { useQuery, useMutation } from '@tanstack/react-query';
+import { calculateMacronutrientTargets } from '@/lib/nutritionCalculations';
 
-// 1. Define Types matching Supabase RPC result
+// --- Define Types for the meal plan structure ---
+interface MealItem {
+  name: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+}
+interface MealPlanSummary {
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+}
+interface MealPlan {
+  breakfast: MealItem[];
+  lunch: MealItem[];
+  dinner: MealItem[];
+  snacks: MealItem[];
+  summary: MealPlanSummary;
+}
+
+// --- Define Types for user data ---
 interface UserDataForMealPlan {
   goal: string | null;
   weight: number | null;
   height: number | null;
 }
 
+const MealCard = ({ title, items, icon }: { title: string; items: MealItem[]; icon: React.ReactNode }) => (
+    <Card>
+        <CardHeader>
+            <CardTitle className="flex items-center text-xl">
+                {icon}
+                <span className="ml-2">{title}</span>
+            </CardTitle>
+        </CardHeader>
+        <CardContent>
+            <ul className="space-y-3">
+                {items.map((item, index) => (
+                    <li key={index} className="border-b pb-2">
+                        <p className="font-semibold">{item.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                            {item.calories} kcal &bull; P: {item.protein}g &bull; C: {item.carbs}g &bull; F: {item.fat}g
+                        </p>
+                    </li>
+                ))}
+            </ul>
+        </CardContent>
+    </Card>
+);
+
 const NutritionLog = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [mealPlan, setMealPlan] = React.useState<string | null>(null);
+  const [mealPlan, setMealPlan] = React.useState<MealPlan | null>(null);
 
   // 2. Always fetch the latest user data (including height)
   const fetchUserDataForMealPlan = async (): Promise<UserDataForMealPlan | null> => {
@@ -57,8 +102,16 @@ const NutritionLog = () => {
   // 4. Meal plan edge function
   const mealPlanMutation = useMutation({
     mutationFn: async () => {
-      if (!userData) throw new Error("User data missing");
-      // Now .height is always correctly saved and loaded from DB
+      if (!userData || !userData.goal || !userData.weight || !userData.height) {
+        throw new Error("User data is incomplete.");
+      }
+
+      const targets = calculateMacronutrientTargets({
+        goal: userData.goal as any, // Cast as goal type is validated in calculation
+        weight: userData.weight,
+        height: userData.height,
+      });
+
       const res = await fetch('/functions/v1/meal-recommendation', {
         method: 'POST',
         headers: {
@@ -68,14 +121,14 @@ const NutritionLog = () => {
           goal: userData.goal,
           weight: userData.weight,
           height: userData.height,
+          targets: targets,
         }),
       });
       if (!res.ok) throw new Error(await res.text());
-      const result = await res.json();
-      return result.meal_plan as string;
+      return await res.json() as MealPlan;
     },
-    onSuccess: (mealPlan) => {
-      setMealPlan(mealPlan);
+    onSuccess: (data: MealPlan) => {
+      setMealPlan(data);
       toast({ title: 'Meal Plan Ready!', description: 'Today’s meal plan was created for you.' });
     },
     onError: (error: any) => {
@@ -94,7 +147,7 @@ const NutritionLog = () => {
         <CardTitle>Meal Recommendation</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="max-w-xl mx-auto space-y-4">
+        <div className="max-w-2xl mx-auto space-y-4">
           <div className="flex items-center justify-between mb-2">
             <p className="text-muted-foreground text-sm">Get a daily meal plan based on your goal, BMI, and latest stats. <br />Macronutrient summary included!</p>
           </div>
@@ -152,9 +205,48 @@ const NutritionLog = () => {
             </Alert>
           )}
 
-          {/* Show the meal plan if available */}
+          {/* --- Display the Meal Plan --- */}
           {mealPlan && (
-            <div className="p-4 rounded-lg border bg-gray-50 dark:bg-gray-950 mt-4 font-mono whitespace-pre-wrap text-sm">{mealPlan}</div>
+            <div className="space-y-6 mt-6">
+                <Card className="bg-muted/40">
+                    <CardHeader>
+                        <CardTitle className="flex items-center text-xl">
+                            <Hash className="h-5 w-5 text-primary" />
+                            <span className="ml-2">Daily Summary</span>
+                        </CardTitle>
+                        <CardDescription>
+                            Your personalized macronutrient targets for today.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                            <div>
+                                <p className="text-2xl font-bold">{mealPlan.summary.calories}</p>
+                                <p className="text-sm text-muted-foreground">Calories</p>
+                            </div>
+                            <div>
+                                <p className="text-2xl font-bold">{mealPlan.summary.protein}g</p>
+                                <p className="text-sm text-muted-foreground">Protein</p>
+                            </div>
+                            <div>
+                                <p className="text-2xl font-bold">{mealPlan.summary.carbs}g</p>
+                                <p className="text-sm text-muted-foreground">Carbs</p>
+                            </div>
+                            <div>
+                                <p className="text-2xl font-bold">{mealPlan.summary.fat}g</p>
+                                <p className="text-sm text-muted-foreground">Fat</p>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <div className="grid md:grid-cols-2 gap-6">
+                    <MealCard title="Breakfast" items={mealPlan.breakfast} icon={<Egg className="h-6 w-6 text-yellow-500" />} />
+                    <MealCard title="Lunch" items={mealPlan.lunch} icon={<Utensils className="h-6 w-6 text-orange-500" />} />
+                    <MealCard title="Dinner" items={mealPlan.dinner} icon={<Beef className="h-6 w-6 text-red-500" />} />
+                    <MealCard title="Snacks" items={mealPlan.snacks} icon={<Apple className="h-6 w-6 text-green-500" />} />
+                </div>
+            </div>
           )}
 
           {!mealPlan && !mealPlanMutation.isPending && userData?.goal && userData.weight != null && userData.height != null && (
