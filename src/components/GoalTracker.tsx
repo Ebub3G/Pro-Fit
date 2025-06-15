@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,6 +11,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
+import LoadingSpinner from './LoadingSpinner';
+import { useErrorHandler } from '@/hooks/useErrorHandler';
 
 interface Goal {
   id: string;
@@ -26,6 +27,7 @@ interface Goal {
 const GoalTracker = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { handleError } = useErrorHandler();
   const queryClient = useQueryClient();
   const [newGoal, setNewGoal] = useState({
     goal_type: '',
@@ -36,14 +38,20 @@ const GoalTracker = () => {
 
   const fetchGoals = async (): Promise<Goal[]> => {
     if (!user) return [];
-    const { data, error } = await supabase
-      .from('user_goals')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
+    
+    try {
+      const { data, error } = await supabase
+        .from('user_goals')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
 
-    if (error) throw error;
-    return data || [];
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      handleError(error, 'Failed to fetch goals');
+      return [];
+    }
   };
 
   const { data: goals = [], isLoading } = useQuery({
@@ -55,6 +63,7 @@ const GoalTracker = () => {
   const addGoalMutation = useMutation({
     mutationFn: async (goalData: any) => {
       if (!user) throw new Error('User not authenticated');
+      
       const { data, error } = await supabase
         .from('user_goals')
         .insert({
@@ -76,11 +85,7 @@ const GoalTracker = () => {
       });
     },
     onError: (error) => {
-      toast({
-        title: "Error",
-        description: "Failed to add goal. Please try again.",
-        variant: "destructive",
-      });
+      handleError(error, 'Failed to add goal');
     },
   });
 
@@ -99,6 +104,9 @@ const GoalTracker = () => {
         title: "Progress Updated",
         description: "Your goal progress has been updated!",
       });
+    },
+    onError: (error) => {
+      handleError(error, 'Failed to update progress');
     },
   });
 
@@ -152,7 +160,7 @@ const GoalTracker = () => {
     return (
       <Card>
         <CardContent className="flex justify-center items-center h-32">
-          <p className="text-muted-foreground">Loading goals...</p>
+          <LoadingSpinner />
         </CardContent>
       </Card>
     );
@@ -237,7 +245,14 @@ const GoalTracker = () => {
               disabled={addGoalMutation.isPending || !newGoal.goal_type || !newGoal.target_weight}
               className="w-full"
             >
-              {addGoalMutation.isPending ? 'Adding...' : 'Add Goal'}
+              {addGoalMutation.isPending ? (
+                <>
+                  <LoadingSpinner size="sm" className="mr-2" />
+                  Adding...
+                </>
+              ) : (
+                'Add Goal'
+              )}
             </Button>
           </div>
         )}
@@ -297,6 +312,7 @@ const GoalTracker = () => {
                   <Button
                     size="sm"
                     variant="outline"
+                    disabled={updateProgressMutation.isPending}
                     onClick={(e) => {
                       const input = (e.target as HTMLElement).parentElement?.querySelector('input') as HTMLInputElement;
                       const progress = parseFloat(input?.value || '0');
@@ -306,7 +322,11 @@ const GoalTracker = () => {
                       }
                     }}
                   >
-                    Update
+                    {updateProgressMutation.isPending ? (
+                      <LoadingSpinner size="sm" />
+                    ) : (
+                      'Update'
+                    )}
                   </Button>
                 </div>
               </div>
