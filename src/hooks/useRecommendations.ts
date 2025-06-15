@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -25,6 +24,9 @@ interface MuscleEntry {
 
 interface UserProfile {
   height_cm: number | null;
+  age: number | null;
+  gender: 'male' | 'female' | null;
+  activity_level: 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active' | null;
 }
 
 interface UserData {
@@ -64,7 +66,7 @@ export const useRecommendations = () => {
                     .limit(5),
                 supabase
                     .from('profiles')
-                    .select('height_cm')
+                    .select('height_cm, age, gender, activity_level')
                     .eq('id', user.id)
                     .maybeSingle()
             ]);
@@ -101,7 +103,7 @@ export const useRecommendations = () => {
         let bmi = 0;
         let bmiCategory = '';
 
-        if (profile?.height_cm && weights.length > 0) {
+        if (profile?.height_cm && weights.length > 0 && profile?.age && profile?.gender && profile?.activity_level) {
             const heightM = profile.height_cm / 100;
             const latestWeight = weights[0].weight;
             bmi = latestWeight / (heightM * heightM);
@@ -177,7 +179,7 @@ export const useRecommendations = () => {
             newRecommendations.push('💧 Stay hydrated and get adequate sleep for recovery');
         }
         
-        if (!profile?.height_cm) {
+        if (!profile?.height_cm || !profile?.age || !profile?.gender || !profile?.activity_level) {
             newRecommendations.unshift('ADD_HEIGHT_PROMPT');
         }
 

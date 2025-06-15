@@ -1,4 +1,3 @@
-
 import { z } from 'zod';
 
 // Define a schema for the input to ensure type safety
@@ -6,11 +5,9 @@ export const calculationInputSchema = z.object({
   goal: z.enum(['lose_weight', 'maintain_weight', 'gain_weight', 'gain_muscle']),
   weight: z.number().positive(), // in kg
   height: z.number().positive(), // in cm
-  // TODO: Add age and gender to user profile for more accurate calculations.
-  // Using defaults for now.
-  age: z.number().positive().default(30), 
-  gender: z.enum(['male', 'female']).default('male'),
-  activityLevel: z.enum(['sedentary', 'light', 'moderate', 'active', 'very_active']).default('light'),
+  age: z.number().positive(), 
+  gender: z.enum(['male', 'female']),
+  activityLevel: z.enum(['sedentary', 'light', 'moderate', 'active', 'very_active']),
 });
 
 type CalculationInput = z.infer<typeof calculationInputSchema>;

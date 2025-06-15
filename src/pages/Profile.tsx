@@ -15,6 +15,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
 import { useErrorHandler } from '@/hooks/useErrorHandler';
 import LoadingSpinner from '@/components/LoadingSpinner';
@@ -24,6 +25,12 @@ const profileFormSchema = z.object({
     (val) => (String(val).trim() === "" ? null : Number(val)),
     z.number().positive('Height must be a positive number.').gt(50, "Height seems too short.").lt(300, "Height seems too tall.").nullable()
   ),
+  age: z.preprocess(
+    (val) => (String(val).trim() === "" ? null : Number(val)),
+    z.number().int().positive('Age must be a positive number.').gt(12, "Age must be over 12.").lt(150, "Age seems too high.").nullable()
+  ),
+  gender: z.enum(['male', 'female']).nullable(),
+  activity_level: z.enum(['sedentary', 'light', 'moderate', 'active', 'very_active']).nullable(),
 });
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
@@ -41,7 +48,7 @@ const Profile = () => {
       if (!user) return null;
       const { data, error } = await supabase
         .from('profiles')
-        .select('height_cm')
+        .select('height_cm, age, gender, activity_level')
         .eq('id', user.id)
         .maybeSingle();
       
@@ -57,6 +64,9 @@ const Profile = () => {
     resolver: zodResolver(profileFormSchema),
     defaultValues: {
       height_cm: null,
+      age: null,
+      gender: null,
+      activity_level: null,
     },
     mode: 'onChange',
   });
@@ -65,6 +75,9 @@ const Profile = () => {
     if (profile) {
       form.reset({
         height_cm: profile.height_cm,
+        age: profile.age,
+        gender: profile.gender as 'male' | 'female' | null,
+        activity_level: profile.activity_level as 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active' | null,
       });
     }
   }, [profile, form]);
@@ -74,7 +87,12 @@ const Profile = () => {
       if (!user) throw new Error('User not authenticated');
       const { error } = await supabase
         .from('profiles')
-        .update({ height_cm: values.height_cm })
+        .update({ 
+          height_cm: values.height_cm,
+          age: values.age,
+          gender: values.gender,
+          activity_level: values.activity_level,
+         })
         .eq('id', user.id);
       if (error) throw error;
     },
@@ -82,6 +100,7 @@ const Profile = () => {
       toast({ title: 'Success', description: 'Your profile has been updated.' });
       queryClient.invalidateQueries({ queryKey: ['profile', user?.id] });
       queryClient.invalidateQueries({ queryKey: ['user-data-for-recommendations', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['user-data-for-meal-plan', user?.id] });
     },
     onError: (error) => {
       handleError(error, 'Failed to update profile.');
@@ -184,6 +203,72 @@ const Profile = () => {
                           </FormControl>
                           <FormDescription>
                             Your height is used to calculate your BMI for better recommendations.
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="age"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Age</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="number" 
+                              placeholder="e.g. 30" 
+                              {...field}
+                              value={field.value ?? ""} 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="gender"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Gender</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value ?? undefined}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select your gender" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="male">Male</SelectItem>
+                              <SelectItem value="female">Female</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="activity_level"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Activity Level</FormLabel>
+                           <Select onValueChange={field.onChange} value={field.value ?? undefined}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select your activity level" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="sedentary">Sedentary (little or no exercise)</SelectItem>
+                              <SelectItem value="light">Lightly active (light exercise/sports 1-3 days/week)</SelectItem>
+                              <SelectItem value="moderate">Moderately active (moderate exercise/sports 3-5 days/week)</SelectItem>
+                              <SelectItem value="active">Active (hard exercise/sports 6-7 days a week)</SelectItem>
+                              <SelectItem value="very_active">Extra active (very hard exercise/sports & a physical job)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormDescription>
+                            This helps in calculating your daily calorie needs accurately.
                           </FormDescription>
                           <FormMessage />
                         </FormItem>

@@ -38,6 +38,9 @@ interface UserDataForMealPlan {
   goal: string | null;
   weight: number | null;
   height: number | null;
+  age: number | null;
+  gender: 'male' | 'female' | null;
+  activity_level: 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active' | null;
 }
 
 const MealCard = ({ title, items, icon }: { title: string; items: MealItem[]; icon: React.ReactNode }) => (
@@ -83,6 +86,9 @@ const NutritionLog = () => {
           goal: entry.goal ?? null,
           weight: entry.weight ?? null,
           height: entry.height ?? null,
+          age: entry.age ?? null,
+          gender: entry.gender ?? null,
+          activity_level: entry.activity_level ?? null,
         }
       : null;
   };
@@ -102,14 +108,17 @@ const NutritionLog = () => {
   // 4. Meal plan edge function
   const mealPlanMutation = useMutation({
     mutationFn: async () => {
-      if (!userData || !userData.goal || !userData.weight || !userData.height) {
-        throw new Error("User data is incomplete.");
+      if (!userData || !userData.goal || !userData.weight || !userData.height || !userData.age || !userData.gender || !userData.activity_level) {
+        throw new Error("User data is incomplete. Please update your profile.");
       }
 
       const targets = calculateMacronutrientTargets({
         goal: userData.goal as any, // Cast as goal type is validated in calculation
         weight: userData.weight,
         height: userData.height,
+        age: userData.age,
+        gender: userData.gender,
+        activityLevel: userData.activity_level,
       });
 
       const res = await fetch('/functions/v1/meal-recommendation', {
@@ -121,6 +130,9 @@ const NutritionLog = () => {
           goal: userData.goal,
           weight: userData.weight,
           height: userData.height,
+          age: userData.age,
+          gender: userData.gender,
+          activityLevel: userData.activity_level,
           targets: targets,
         }),
       });
@@ -159,7 +171,10 @@ const NutritionLog = () => {
                 isLoadingUserData ||
                 !userData?.goal ||
                 userData.weight == null ||
-                userData.height == null
+                userData.height == null ||
+                userData.age == null ||
+                userData.gender == null ||
+                userData.activity_level == null
               }
             >
               {mealPlanMutation.isPending ? <LoadingSpinner size="sm" /> : 'Generate Plan'}
@@ -178,16 +193,16 @@ const NutritionLog = () => {
           </div>
           {isLoadingUserData && <div className="flex justify-center items-center h-40"><LoadingSpinner /></div>}
           {isErrorUserData && <Alert variant="destructive"><AlertTitle>Error</AlertTitle><AlertDescription>Could not load user data needed for recommendations.</AlertDescription></Alert>}
-          {(!isLoadingUserData && !isErrorUserData && (!userData?.goal || userData.weight == null || userData.height == null)) && (
+          {(!isLoadingUserData && !isErrorUserData && (!userData?.goal || userData.weight == null || userData.height == null || userData.age == null || userData.gender == null || userData.activity_level == null)) && (
             <Alert>
               <Lightbulb className="h-4 w-4" />
               <AlertTitle>Set up your profile for recommendations!</AlertTitle>
               <AlertDescription>
                 Please complete your profile to generate a meal plan:
                 <ul className="list-disc pl-5 mt-2 space-y-1">
-                  {userData?.height == null && (
+                  {(userData?.height == null || userData?.age == null || userData?.gender == null || userData?.activity_level == null) && (
                     <li>
-                      Add your <Link to="/profile" className="font-bold underline">height</Link>.
+                      Please add your height, age, gender, and activity level in your <Link to="/profile" className="font-bold underline">profile</Link>.
                     </li>
                   )}
                   {userData?.weight == null && (
@@ -261,6 +276,18 @@ const NutritionLog = () => {
               <span>
                 <span className="font-medium">Your saved height: </span>
                 {userData.height} cm
+              </span>
+            )}
+            {userData?.age && (
+              <span className="ml-4">
+                <span className="font-medium">Age: </span>
+                {userData.age}
+              </span>
+            )}
+            {userData?.gender && (
+              <span className="ml-4">
+                <span className="font-medium">Gender: </span>
+                <span className="capitalize">{userData.gender}</span>
               </span>
             )}
           </div>
