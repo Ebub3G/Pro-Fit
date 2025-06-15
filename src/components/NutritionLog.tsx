@@ -42,8 +42,11 @@ const NutritionLog = () => {
   const fetchUserDataForMealPlan = async () => {
     if (!user) return null;
     const { data, error } = await supabase.rpc('get_user_data_for_recommendations', { p_user_id: user.id });
-    if (error) throw error;
-    return data[0];
+    if (error) {
+        console.error("Error fetching user data for meal plan:", error);
+        throw error;
+    }
+    return (data && data.length > 0) ? data[0] : null;
   };
 
   const { data: userData, isLoading: isLoadingUserData, isError: isErrorUserData } = useQuery({
@@ -105,7 +108,7 @@ const NutritionLog = () => {
             </div>
             <Button
               onClick={handleGenerateMealPlan}
-              disabled={mealPlanMutation.isPending || isLoadingUserData || !userData?.goal || !userData.weight || !userData.height}
+              disabled={mealPlanMutation.isPending || isLoadingUserData || !userData || !userData.goal || !userData.weight || !userData.height}
             >
               {mealPlanMutation.isPending ? (
                 <LoadingSpinner size="sm" />
@@ -125,18 +128,29 @@ const NutritionLog = () => {
           {isLoadingUserData && <div className="flex justify-center items-center h-40"><LoadingSpinner /></div>}
           {isErrorUserData && <Alert variant="destructive"><AlertTitle>Error</AlertTitle><AlertDescription>Could not load user data needed for recommendations.</AlertDescription></Alert>}
 
-          {!isLoadingUserData && !isErrorUserData && (!userData?.goal || !userData?.weight || !userData?.height) && (
+          {!isLoadingUserData && !isErrorUserData && (!userData || !userData.goal || !userData.weight || !userData.height) && (
              <Alert>
               <Lightbulb className="h-4 w-4" />
               <AlertTitle>Set up your profile for recommendations!</AlertTitle>
               <AlertDescription>
-                Please add your {' '}
-                {!userData?.height && <Link to="/profile" className="font-bold underline">height</Link>}
-                {!userData?.height && (!userData?.weight || !userData?.goal) && ', '}
-                {!userData?.weight && <span className="font-bold">weight entries</span>}
-                {(!userData?.height || !userData?.weight) && !userData?.goal && ', and '}
-                {!userData?.goal && <span className="font-bold">an active goal</span>}
-                {' '} to get personalized meal plans.
+                Please complete your profile to generate a meal plan:
+                <ul className="list-disc pl-5 mt-2 space-y-1">
+                  {!userData?.height && (
+                    <li>
+                      Add your <Link to="/profile" className="font-bold underline">height</Link>.
+                    </li>
+                  )}
+                  {!userData?.weight && (
+                    <li>
+                      Add a <span className="font-bold">weight entry</span> in the 'Weight' tab.
+                    </li>
+                  )}
+                  {!userData?.goal && (
+                    <li>
+                      Set an <span className="font-bold">active goal</span> in the 'Goals' tab.
+                    </li>
+                  )}
+                </ul>
               </AlertDescription>
             </Alert>
           )}
@@ -164,7 +178,7 @@ const NutritionLog = () => {
             </div>
           )}
 
-          {!mealPlan && !mealPlanMutation.isPending && userData?.goal && userData.weight && userData.height &&(
+          {!mealPlan && !mealPlanMutation.isPending && userData && userData.goal && userData.weight && userData.height && (
             <div className="text-center text-muted-foreground py-10">
               <p>Click "Generate Plan" to get your personalized meal recommendations for today.</p>
             </div>

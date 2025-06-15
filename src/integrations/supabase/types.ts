@@ -194,7 +194,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_data_for_recommendations: {
+        Args: { p_user_id: string }
+        Returns: {
+          goal: string
+          weight: number
+          height: number
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
