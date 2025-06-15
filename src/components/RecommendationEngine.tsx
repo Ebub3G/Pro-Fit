@@ -43,7 +43,7 @@ const RecommendationEngine = () => {
               {autoRefresh ? '🔄 Auto' : '⏸️ Manual'}
             </Button>
             <Button
-              onClick={refreshRecommendations}
+              onClick={() => refreshRecommendations()}
               size="sm"
               variant="outline"
             >
