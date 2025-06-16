@@ -144,7 +144,7 @@ const NutritionLog = () => {
     },
     onSuccess: (data: MealPlan) => {
       setMealPlan(data);
-      toast({ title: 'Meal Plan Ready!', description: 'Today's meal plan was created for you.' });
+      toast({ title: 'Meal Plan Ready!', description: 'Today\'s meal plan was created for you.' });
     },
     onError: (error: any) => {
       toast({ title: 'Error', description: error?.message || 'Failed to generate meal plan.' });
