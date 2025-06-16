@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -76,11 +77,22 @@ export const useRecommendations = () => {
             if (muscleResponse.error) throw muscleResponse.error;
             if (profileResponse.error) throw profileResponse.error;
 
+            // Cast types properly for profile data
+            const profileData = profileResponse.data;
+            const typedProfile: UserProfile | null = profileData ? {
+                height_cm: profileData.height_cm,
+                age: profileData.age,
+                gender: (profileData.gender === 'male' || profileData.gender === 'female') ? profileData.gender : null,
+                activity_level: (['sedentary', 'light', 'moderate', 'active', 'very_active'].includes(profileData.activity_level)) 
+                    ? profileData.activity_level as 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active' 
+                    : null,
+            } : null;
+
             return {
                 goals: goalsResponse.data || [],
                 weights: weightsResponse.data || [],
                 muscle: muscleResponse.data || [],
-                profile: profileResponse.data
+                profile: typedProfile
             };
         } catch (error) {
             handleError(error, 'Failed to fetch user data for recommendations');

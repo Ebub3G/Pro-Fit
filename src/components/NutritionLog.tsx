@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -80,15 +81,17 @@ const NutritionLog = () => {
       throw error;
     }
     const entry = (data && data.length > 0) ? data[0] : null;
-    // Ensure all fields are present (null if missing)
+    // Ensure all fields are present (null if missing) and cast types properly
     return entry
       ? {
           goal: entry.goal ?? null,
           weight: entry.weight ?? null,
           height: entry.height ?? null,
           age: entry.age ?? null,
-          gender: entry.gender ?? null,
-          activity_level: entry.activity_level ?? null,
+          gender: (entry.gender === 'male' || entry.gender === 'female') ? entry.gender : null,
+          activity_level: (['sedentary', 'light', 'moderate', 'active', 'very_active'].includes(entry.activity_level)) 
+            ? entry.activity_level as 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active' 
+            : null,
         }
       : null;
   };
@@ -141,7 +144,7 @@ const NutritionLog = () => {
     },
     onSuccess: (data: MealPlan) => {
       setMealPlan(data);
-      toast({ title: 'Meal Plan Ready!', description: 'Today’s meal plan was created for you.' });
+      toast({ title: 'Meal Plan Ready!', description: 'Today's meal plan was created for you.' });
     },
     onError: (error: any) => {
       toast({ title: 'Error', description: error?.message || 'Failed to generate meal plan.' });
