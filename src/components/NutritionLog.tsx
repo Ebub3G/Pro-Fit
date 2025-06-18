@@ -34,7 +34,6 @@ interface MealPlan {
   summary: MealPlanSummary;
 }
 
-// --- Define Types for user data ---
 interface UserDataForMealPlan {
   goal: string | null;
   weight: number | null;
@@ -72,17 +71,20 @@ const NutritionLog = () => {
   const { toast } = useToast();
   const [mealPlan, setMealPlan] = React.useState<MealPlan | null>(null);
 
-  // 2. Always fetch the latest user data (including height)
   const fetchUserDataForMealPlan = async (): Promise<UserDataForMealPlan | null> => {
     if (!user) return null;
+    console.log('Fetching user data for meal plan, user ID:', user.id);
     const { data, error } = await supabase.rpc('get_user_data_for_recommendations', { p_user_id: user.id });
     if (error) {
       console.error("Error fetching user data for meal plan:", error);
       throw error;
     }
+    console.log('Raw data from RPC:', data);
+    
     const entry = (data && data.length > 0) ? data[0] : null;
-    // Ensure all fields are present (null if missing) and cast types properly
-    return entry
+    console.log('Processed entry:', entry);
+    
+    const result = entry
       ? {
           goal: entry.goal ?? null,
           weight: entry.weight ?? null,
@@ -94,9 +96,11 @@ const NutritionLog = () => {
             : null,
         }
       : null;
+    
+    console.log('Final user data for meal plan:', result);
+    return result;
   };
 
-  // 3. Type userData as UserDataForMealPlan|null to avoid 'never' error
   const {
     data: userData,
     isLoading: isLoadingUserData,
@@ -108,54 +112,86 @@ const NutritionLog = () => {
     enabled: !!user,
   });
 
-  // 4. Meal plan edge function
   const mealPlanMutation = useMutation({
     mutationFn: async () => {
+      console.log('Starting meal plan generation with userData:', userData);
+      
       if (!userData || !userData.goal || !userData.weight || !userData.height || !userData.age || !userData.gender || !userData.activity_level) {
-        throw new Error("User data is incomplete. Please update your profile.");
+        const missingFields = [];
+        if (!userData?.goal) missingFields.push('goal');
+        if (!userData?.weight) missingFields.push('weight');
+        if (!userData?.height) missingFields.push('height');
+        if (!userData?.age) missingFields.push('age');
+        if (!userData?.gender) missingFields.push('gender');
+        if (!userData?.activity_level) missingFields.push('activity_level');
+        
+        console.error('Missing fields for meal plan:', missingFields);
+        throw new Error(`User data is incomplete. Missing: ${missingFields.join(', ')}. Please update your profile.`);
       }
 
       const targets = calculateMacronutrientTargets({
-        goal: userData.goal as any, // Cast as goal type is validated in calculation
+        goal: userData.goal as any,
         weight: userData.weight,
         height: userData.height,
         age: userData.age,
         gender: userData.gender,
         activityLevel: userData.activity_level,
       });
+      
+      console.log('Calculated targets:', targets);
+
+      const requestBody = {
+        goal: userData.goal,
+        weight: userData.weight,
+        height: userData.height,
+        age: userData.age,
+        gender: userData.gender,
+        activityLevel: userData.activity_level,
+        targets: targets,
+      };
+      
+      console.log('Sending request to meal recommendation API:', requestBody);
 
       const res = await fetch('/functions/v1/meal-recommendation', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          goal: userData.goal,
-          weight: userData.weight,
-          height: userData.height,
-          age: userData.age,
-          gender: userData.gender,
-          activityLevel: userData.activity_level,
-          targets: targets,
-        }),
+        body: JSON.stringify(requestBody),
       });
-      if (!res.ok) throw new Error(await res.text());
-      return await res.json() as MealPlan;
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error('Meal recommendation API error:', errorText);
+        throw new Error(errorText);
+      }
+      
+      const result = await res.json() as MealPlan;
+      console.log('Meal plan result:', result);
+      return result;
     },
     onSuccess: (data: MealPlan) => {
       setMealPlan(data);
       toast({ title: 'Meal Plan Ready!', description: 'Today\'s meal plan was created for you.' });
     },
     onError: (error: any) => {
+      console.error('Meal plan generation error:', error);
       toast({ title: 'Error', description: error?.message || 'Failed to generate meal plan.' });
     },
   });
 
   const handleGenerateMealPlan = () => {
+    console.log('Generate meal plan clicked');
     mealPlanMutation.mutate();
   };
 
-  // Always show persisted userData.height, unless user's profile changes!
+  const isDataComplete = userData?.goal && 
+                         userData.weight != null && 
+                         userData.height != null && 
+                         userData.age != null && 
+                         userData.gender != null && 
+                         userData.activity_level != null;
+
   return (
     <Card>
       <CardHeader>
@@ -166,19 +202,29 @@ const NutritionLog = () => {
           <div className="flex items-center justify-between mb-2">
             <p className="text-muted-foreground text-sm">Get a daily meal plan based on your goal, BMI, and latest stats. <br />Macronutrient summary included!</p>
           </div>
+          
+          {/* Debug section */}
+          <Card className="bg-muted/20">
+            <CardHeader>
+              <CardTitle className="text-sm">Debug Information</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-xs space-y-1">
+                <p>Data Complete: {isDataComplete ? 'Yes' : 'No'}</p>
+                <p>Goal: {userData?.goal || 'Missing'}</p>
+                <p>Weight: {userData?.weight || 'Missing'}</p>
+                <p>Height: {userData?.height || 'Missing'}</p>
+                <p>Age: {userData?.age || 'Missing'}</p>
+                <p>Gender: {userData?.gender || 'Missing'}</p>
+                <p>Activity Level: {userData?.activity_level || 'Missing'}</p>
+              </div>
+            </CardContent>
+          </Card>
+          
           <div className="flex items-center gap-3 mb-2">
             <Button
               onClick={handleGenerateMealPlan}
-              disabled={
-                mealPlanMutation.isPending ||
-                isLoadingUserData ||
-                !userData?.goal ||
-                userData.weight == null ||
-                userData.height == null ||
-                userData.age == null ||
-                userData.gender == null ||
-                userData.activity_level == null
-              }
+              disabled={mealPlanMutation.isPending || isLoadingUserData || !isDataComplete}
             >
               {mealPlanMutation.isPending ? <LoadingSpinner size="sm" /> : 'Generate Plan'}
             </Button>
@@ -194,9 +240,11 @@ const NutritionLog = () => {
               Refresh Data
             </Button>
           </div>
+          
           {isLoadingUserData && <div className="flex justify-center items-center h-40"><LoadingSpinner /></div>}
           {isErrorUserData && <Alert variant="destructive"><AlertTitle>Error</AlertTitle><AlertDescription>Could not load user data needed for recommendations.</AlertDescription></Alert>}
-          {(!isLoadingUserData && !isErrorUserData && (!userData?.goal || userData.weight == null || userData.height == null || userData.age == null || userData.gender == null || userData.activity_level == null)) && (
+          
+          {(!isLoadingUserData && !isErrorUserData && !isDataComplete) && (
             <Alert>
               <Lightbulb className="h-4 w-4" />
               <AlertTitle>Set up your profile for recommendations!</AlertTitle>
@@ -267,13 +315,13 @@ const NutritionLog = () => {
             </div>
           )}
 
-          {!mealPlan && !mealPlanMutation.isPending && userData?.goal && userData.weight != null && userData.height != null && (
+          {!mealPlan && !mealPlanMutation.isPending && isDataComplete && (
             <div className="text-center text-muted-foreground py-10">
               <p>Click "Generate Plan" to get your personalized meal recommendations for today.</p>
             </div>
           )}
 
-          {/* Optionally, display the user's saved height for reference */}
+          {/* Display saved info for reference */}
           <div className="flex items-center justify-center mt-6 text-xs text-muted-foreground">
             {userData?.height && (
               <span>

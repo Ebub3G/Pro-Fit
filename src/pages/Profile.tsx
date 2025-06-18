@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -21,16 +20,10 @@ import { useErrorHandler } from '@/hooks/useErrorHandler';
 import LoadingSpinner from '@/components/LoadingSpinner';
 
 const profileFormSchema = z.object({
-  height_cm: z.preprocess(
-    (val) => (String(val).trim() === "" ? null : Number(val)),
-    z.number().positive('Height must be a positive number.').gt(50, "Height seems too short.").lt(300, "Height seems too tall.").nullable()
-  ),
-  age: z.preprocess(
-    (val) => (String(val).trim() === "" ? null : Number(val)),
-    z.number().int().positive('Age must be a positive number.').gt(12, "Age must be over 12.").lt(150, "Age seems too high.").nullable()
-  ),
-  gender: z.enum(['male', 'female']).nullable(),
-  activity_level: z.enum(['sedentary', 'light', 'moderate', 'active', 'very_active']).nullable(),
+  height_cm: z.number().positive('Height must be a positive number.').gt(50, "Height seems too short.").lt(300, "Height seems too tall."),
+  age: z.number().int().positive('Age must be a positive number.').gt(12, "Age must be over 12.").lt(150, "Age seems too high."),
+  gender: z.enum(['male', 'female'], { required_error: "Please select a gender" }),
+  activity_level: z.enum(['sedentary', 'light', 'moderate', 'active', 'very_active'], { required_error: "Please select an activity level" }),
 });
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
@@ -46,6 +39,7 @@ const Profile = () => {
     queryKey: ['profile', user?.id],
     queryFn: async () => {
       if (!user) return null;
+      console.log('Fetching profile for user:', user.id);
       const { data, error } = await supabase
         .from('profiles')
         .select('height_cm, age, gender, activity_level')
@@ -53,8 +47,10 @@ const Profile = () => {
         .maybeSingle();
       
       if (error) {
-          handleError(error, "Could not fetch profile information.");
+        console.error('Profile fetch error:', error);
+        handleError(error, "Could not fetch profile information.");
       }
+      console.log('Profile data fetched:', data);
       return data;
     },
     enabled: !!user,
@@ -63,21 +59,22 @@ const Profile = () => {
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
     defaultValues: {
-      height_cm: null,
-      age: null,
-      gender: null,
-      activity_level: null,
+      height_cm: 0,
+      age: 0,
+      gender: undefined,
+      activity_level: undefined,
     },
     mode: 'onChange',
   });
 
   React.useEffect(() => {
     if (profile) {
+      console.log('Setting form values with profile data:', profile);
       form.reset({
-        height_cm: profile.height_cm,
-        age: profile.age,
-        gender: profile.gender as 'male' | 'female' | null,
-        activity_level: profile.activity_level as 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active' | null,
+        height_cm: profile.height_cm || 0,
+        age: profile.age || 0,
+        gender: profile.gender as 'male' | 'female' | undefined,
+        activity_level: profile.activity_level as 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active' | undefined,
       });
     }
   }, [profile, form]);
@@ -85,16 +82,22 @@ const Profile = () => {
   const updateProfileMutation = useMutation({
     mutationFn: async (values: ProfileFormValues) => {
       if (!user) throw new Error('User not authenticated');
+      console.log('Updating profile with values:', values);
       const { error } = await supabase
         .from('profiles')
-        .update({ 
+        .upsert({ 
+          id: user.id,
           height_cm: values.height_cm,
           age: values.age,
           gender: values.gender,
           activity_level: values.activity_level,
          })
         .eq('id', user.id);
-      if (error) throw error;
+      if (error) {
+        console.error('Profile update error:', error);
+        throw error;
+      }
+      console.log('Profile updated successfully');
     },
     onSuccess: () => {
       toast({ title: 'Success', description: 'Your profile has been updated.' });
@@ -103,14 +106,15 @@ const Profile = () => {
       queryClient.invalidateQueries({ queryKey: ['user-data-for-meal-plan', user?.id] });
     },
     onError: (error) => {
+      console.error('Profile update mutation error:', error);
       handleError(error, 'Failed to update profile.');
     }
   });
 
   const onSubmit = (values: ProfileFormValues) => {
+    console.log('Form submitted with values:', values);
     updateProfileMutation.mutate(values);
   };
-
 
   const handleSignOut = async () => {
     await signOut();
@@ -192,13 +196,14 @@ const Profile = () => {
                       name="height_cm"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Height (cm)</FormLabel>
+                          <FormLabel>Height (cm) *</FormLabel>
                           <FormControl>
                             <Input 
                               type="number" 
                               placeholder="e.g. 180" 
                               {...field}
-                              value={field.value ?? ""} 
+                              onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : 0)}
+                              value={field.value || ""} 
                             />
                           </FormControl>
                           <FormDescription>
@@ -213,13 +218,14 @@ const Profile = () => {
                       name="age"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Age</FormLabel>
+                          <FormLabel>Age *</FormLabel>
                           <FormControl>
                             <Input 
                               type="number" 
                               placeholder="e.g. 30" 
                               {...field}
-                              value={field.value ?? ""} 
+                              onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : 0)}
+                              value={field.value || ""} 
                             />
                           </FormControl>
                           <FormMessage />
@@ -231,8 +237,8 @@ const Profile = () => {
                       name="gender"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Gender</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value ?? undefined}>
+                          <FormLabel>Gender *</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl>
                               <SelectTrigger>
                                 <SelectValue placeholder="Select your gender" />
@@ -252,8 +258,8 @@ const Profile = () => {
                       name="activity_level"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Activity Level</FormLabel>
-                           <Select onValueChange={field.onChange} value={field.value ?? undefined}>
+                          <FormLabel>Activity Level *</FormLabel>
+                           <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl>
                               <SelectTrigger>
                                 <SelectValue placeholder="Select your activity level" />
@@ -274,7 +280,7 @@ const Profile = () => {
                         </FormItem>
                       )}
                     />
-                    <Button type="submit" disabled={updateProfileMutation.isPending || !form.formState.isDirty}>
+                    <Button type="submit" disabled={updateProfileMutation.isPending}>
                       {updateProfileMutation.isPending ? <LoadingSpinner size="sm" /> : 'Save Changes'}
                     </Button>
                   </form>
@@ -283,6 +289,20 @@ const Profile = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Debug info */}
+        {profile && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Current Profile Data (Debug)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <pre className="text-sm bg-muted p-4 rounded">
+                {JSON.stringify(profile, null, 2)}
+              </pre>
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader>
