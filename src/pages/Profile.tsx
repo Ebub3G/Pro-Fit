@@ -91,8 +91,7 @@ const Profile = () => {
           age: values.age,
           gender: values.gender,
           activity_level: values.activity_level,
-         })
-        .eq('id', user.id);
+         });
       if (error) {
         console.error('Profile update error:', error);
         throw error;
@@ -290,7 +289,6 @@ const Profile = () => {
           </Card>
         </div>
 
-        {/* Debug info */}
         {profile && (
           <Card>
             <CardHeader>
@@ -329,8 +327,6 @@ const Profile = () => {
             </div>
           </CardContent>
         </Card>
-
-        {/* This Card was removed to avoid redundancy as theme toggle is in the header */}
       </div>
     </div>
   );
