@@ -90,7 +90,7 @@ const NutritionLog = () => {
           weight: entry.weight ?? null,
           height: entry.height ?? null,
           age: entry.age ?? null,
-          gender: (entry.gender === 'male' || entry.gender === 'female') ? entry.gender : null,
+          gender: (entry.gender === 'male' || entry.gender === 'female') ? entry.gender as 'male' | 'female' : null,
           activity_level: (['sedentary', 'light', 'moderate', 'active', 'very_active'].includes(entry.activity_level)) 
             ? entry.activity_level as 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active' 
             : null,
