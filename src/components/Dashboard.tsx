@@ -1,95 +1,136 @@
-
 import React, { useState } from 'react';
-import MetricsOverview from './MetricsOverview';
-import WeightTracker from './WeightTracker';
-import MuscleTracker from './MuscleTracker';
-import NutritionLog from './NutritionLog';
-import WorkoutLog from './WorkoutLog';
-import GoalTracker from './GoalTracker';
-import RecommendationEngine from './RecommendationEngine';
-import PremiumFeature from './PremiumFeature';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useTier } from '@/contexts/TierContext';
+import { Link } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useToast } from '@/components/ui/use-toast';
+import { Scale, TrendingUp, User, Sun, Moon, Zap, Brain } from 'lucide-react';
+import WeightDialog from '@/components/WeightDialog';
+import MuscleDialog from '@/components/MuscleDialog';
+import { useErrorHandler } from '@/hooks/useErrorHandler';
+import { useQueryClient } from '@tanstack/react-query';
+import DailyTasks from '@/components/DailyTasks';
 
 const Dashboard = () => {
-  const { isPro } = useTier();
+  const { user, signOut } = useAuth();
+  const { theme, toggleTheme } = useTheme();
+  const { toast } = useToast();
+  const { handleError } = useErrorHandler();
+  const queryClient = useQueryClient();
+
+  const [showWeightDialog, setShowWeightDialog] = useState(false);
+  const [showMuscleDialog, setShowMuscleDialog] = useState(false);
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      // Optionally, redirect the user to the login page or perform other actions after signing out.
+    } catch (error) {
+      handleError(error, "Failed to sign out.");
+    }
+  };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="mb-8 text-center">
-        <h1 className="text-4xl font-bold mb-4">
-          Your Fitness <span className="text-primary">Analytics</span>
-        </h1>
-        <p className="text-muted-foreground text-lg">
-          Track • Analyze • Optimize • Achieve
-        </p>
-      </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* Quick Actions */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Zap className="h-5 w-5" />
+            <span>Quick Actions</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Link to="/ai-plans" className="block">
+            <Button className="w-full justify-start bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700">
+              <Brain className="h-4 w-4 mr-2" />
+              Generate AI Plans
+            </Button>
+          </Link>
+          <Link to="/profile" className="block">
+            <Button variant="outline" className="w-full justify-start">
+              <User className="h-4 w-4 mr-2" />
+              Update Profile
+            </Button>
+          </Link>
+          <Button variant="outline" className="w-full justify-start" onClick={() => setShowWeightDialog(true)}>
+            <Scale className="h-4 w-4 mr-2" />
+            Log Weight
+          </Button>
+          <Button variant="outline" className="w-full justify-start" onClick={() => setShowMuscleDialog(true)}>
+            <TrendingUp className="h-4 w-4 mr-2" />
+            Log Measurements
+          </Button>
+        </CardContent>
+      </Card>
 
-      <div className="mb-8">
-        {isPro ? (
-          <MetricsOverview />
-        ) : (
-          <PremiumFeature
-            feature="Advanced Metrics Overview"
-            description="Get detailed insights into your fitness progress with advanced analytics and trend visualization."
-          >
-            <MetricsOverview />
-          </PremiumFeature>
-        )}
-      </div>
+      {/* Today's Tasks */}
+      <DailyTasks />
 
-      <Tabs defaultValue="goals" className="mt-8">
-        <TabsList className="grid w-full grid-cols-6">
-          <TabsTrigger value="goals">Goals</TabsTrigger>
-          <TabsTrigger value="weight">Weight</TabsTrigger>
-          <TabsTrigger value="muscle">Muscle</TabsTrigger>
-          <TabsTrigger value="nutrition">Nutrition</TabsTrigger>
-          <TabsTrigger value="workouts">Workouts</TabsTrigger>
-          <TabsTrigger value="recommendations">AI Coach</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="goals" className="mt-6">
-          <GoalTracker />
-        </TabsContent>
-        
-        <TabsContent value="weight" className="mt-6">
-          <WeightTracker />
-        </TabsContent>
-        
-        <TabsContent value="muscle" className="mt-6">
-          {isPro ? (
-            <MuscleTracker />
-          ) : (
-            <PremiumFeature
-              feature="Muscle Measurement Tracking"
-              description="Track detailed body measurements including chest, biceps, waist, and thighs with progress analytics."
-            >
-              <MuscleTracker />
-            </PremiumFeature>
-          )}
-        </TabsContent>
-        
-        <TabsContent value="nutrition" className="mt-6">
-          <NutritionLog />
-        </TabsContent>
-        
-        <TabsContent value="workouts" className="mt-6">
-          {isPro ? (
-            <WorkoutLog />
-          ) : (
-            <PremiumFeature
-              feature="Advanced Workout Logging"
-              description="Log detailed workout sessions with exercise selection, sets, reps, and weight tracking."
-            >
-              <WorkoutLog />
-            </PremiumFeature>
-          )}
-        </TabsContent>
+      {/* Weight Chart */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Weight Chart</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {/* Placeholder for Weight Chart Component */}
+          <p className="text-muted-foreground">Coming Soon: Visualize your weight progress over time.</p>
+        </CardContent>
+      </Card>
 
-        <TabsContent value="recommendations" className="mt-6">
-          <RecommendationEngine />
-        </TabsContent>
-      </Tabs>
+      {/* Muscle Measurements */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Muscle Measurements</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {/* Placeholder for Muscle Measurement Component */}
+          <p className="text-muted-foreground">Track your muscle growth and body composition changes.</p>
+        </CardContent>
+      </Card>
+
+      {/* Nutrition Log */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Nutrition Log</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {/* Placeholder for Nutrition Log Component */}
+          <p className="text-muted-foreground">Log your daily meals and track your calorie intake.</p>
+        </CardContent>
+      </Card>
+
+      {/* Fitness Goals */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Fitness Goals</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {/* Placeholder for Fitness Goals Component */}
+          <p className="text-muted-foreground">Set and track your fitness goals to stay motivated.</p>
+        </CardContent>
+      </Card>
+
+      {/* Settings */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Settings</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Button variant="outline" className="w-full justify-start" onClick={toggleTheme}>
+            {theme === 'light' ? <Moon className="h-4 w-4 mr-2" /> : <Sun className="h-4 w-4 mr-2" />}
+            Toggle Theme
+          </Button>
+          <Button variant="destructive" className="w-full justify-start" onClick={handleSignOut}>
+            <User className="h-4 w-4 mr-2" />
+            Sign Out
+          </Button>
+        </CardContent>
+      </Card>
+
+      <WeightDialog open={showWeightDialog} onOpenChange={setShowWeightDialog} />
+      <MuscleDialog open={showMuscleDialog} onOpenChange={setShowMuscleDialog} />
     </div>
   );
 };
