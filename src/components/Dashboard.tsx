@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -6,8 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
 import { Scale, TrendingUp, User, Sun, Moon, Zap, Brain } from 'lucide-react';
-import WeightDialog from '@/components/WeightDialog';
-import MuscleDialog from '@/components/MuscleDialog';
 import { useErrorHandler } from '@/hooks/useErrorHandler';
 import { useQueryClient } from '@tanstack/react-query';
 import DailyTasks from '@/components/DailyTasks';
@@ -18,9 +17,6 @@ const Dashboard = () => {
   const { toast } = useToast();
   const { handleError } = useErrorHandler();
   const queryClient = useQueryClient();
-
-  const [showWeightDialog, setShowWeightDialog] = useState(false);
-  const [showMuscleDialog, setShowMuscleDialog] = useState(false);
 
   const handleSignOut = async () => {
     try {
@@ -54,14 +50,6 @@ const Dashboard = () => {
               Update Profile
             </Button>
           </Link>
-          <Button variant="outline" className="w-full justify-start" onClick={() => setShowWeightDialog(true)}>
-            <Scale className="h-4 w-4 mr-2" />
-            Log Weight
-          </Button>
-          <Button variant="outline" className="w-full justify-start" onClick={() => setShowMuscleDialog(true)}>
-            <TrendingUp className="h-4 w-4 mr-2" />
-            Log Measurements
-          </Button>
         </CardContent>
       </Card>
 
@@ -128,9 +116,6 @@ const Dashboard = () => {
           </Button>
         </CardContent>
       </Card>
-
-      <WeightDialog open={showWeightDialog} onOpenChange={setShowWeightDialog} />
-      <MuscleDialog open={showMuscleDialog} onOpenChange={setShowMuscleDialog} />
     </div>
   );
 };
