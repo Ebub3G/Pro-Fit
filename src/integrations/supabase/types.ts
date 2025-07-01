@@ -15,10 +15,13 @@ export type Database = {
           age: number | null
           avatar_url: string | null
           created_at: string
+          current_weight: number | null
+          fitness_goal: string | null
           full_name: string | null
           gender: string | null
           height_cm: number | null
           id: string
+          target_weight: number | null
           updated_at: string
         }
         Insert: {
@@ -26,10 +29,13 @@ export type Database = {
           age?: number | null
           avatar_url?: string | null
           created_at?: string
+          current_weight?: number | null
+          fitness_goal?: string | null
           full_name?: string | null
           gender?: string | null
           height_cm?: number | null
           id: string
+          target_weight?: number | null
           updated_at?: string
         }
         Update: {
@@ -37,10 +43,13 @@ export type Database = {
           age?: number | null
           avatar_url?: string | null
           created_at?: string
+          current_weight?: number | null
+          fitness_goal?: string | null
           full_name?: string | null
           gender?: string | null
           height_cm?: number | null
           id?: string
+          target_weight?: number | null
           updated_at?: string
         }
         Relationships: []
@@ -135,10 +144,12 @@ export type Database = {
           goal_type: string
           id: string
           is_active: boolean
+          preferred_workout_type: string | null
           target_date: string | null
           target_weight: number | null
           updated_at: string
           user_id: string
+          weekly_workout_days: number | null
         }
         Insert: {
           created_at?: string
@@ -146,10 +157,12 @@ export type Database = {
           goal_type: string
           id?: string
           is_active?: boolean
+          preferred_workout_type?: string | null
           target_date?: string | null
           target_weight?: number | null
           updated_at?: string
           user_id: string
+          weekly_workout_days?: number | null
         }
         Update: {
           created_at?: string
@@ -157,10 +170,12 @@ export type Database = {
           goal_type?: string
           id?: string
           is_active?: boolean
+          preferred_workout_type?: string | null
           target_date?: string | null
           target_weight?: number | null
           updated_at?: string
           user_id?: string
+          weekly_workout_days?: number | null
         }
         Relationships: []
       }

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -5,7 +6,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Activity, User, Mail, Calendar, LogOut, Moon, Sun, Home, Edit } from 'lucide-react';
+import { Activity, User, Mail, Calendar, LogOut, Moon, Sun, Home, Edit, Target, Scale } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -24,6 +25,9 @@ const profileFormSchema = z.object({
   age: z.number().int().positive('Age must be a positive number.').gt(12, "Age must be over 12.").lt(150, "Age seems too high."),
   gender: z.enum(['male', 'female'], { required_error: "Please select a gender" }),
   activity_level: z.enum(['sedentary', 'light', 'moderate', 'active', 'very_active'], { required_error: "Please select an activity level" }),
+  current_weight: z.number().positive('Current weight must be a positive number.').gt(20, "Weight seems too low.").lt(500, "Weight seems too high."),
+  target_weight: z.number().positive('Target weight must be a positive number.').gt(20, "Weight seems too low.").lt(500, "Weight seems too high."),
+  fitness_goal: z.enum(['lose_weight', 'gain_weight', 'gain_muscle', 'maintain_weight', 'improve_fitness'], { required_error: "Please select a fitness goal" }),
 });
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
@@ -42,7 +46,7 @@ const Profile = () => {
       console.log('Fetching profile for user:', user.id);
       const { data, error } = await supabase
         .from('profiles')
-        .select('height_cm, age, gender, activity_level')
+        .select('height_cm, age, gender, activity_level, current_weight, target_weight, fitness_goal')
         .eq('id', user.id)
         .maybeSingle();
       
@@ -63,6 +67,9 @@ const Profile = () => {
       age: 0,
       gender: undefined,
       activity_level: undefined,
+      current_weight: 0,
+      target_weight: 0,
+      fitness_goal: undefined,
     },
     mode: 'onChange',
   });
@@ -75,6 +82,9 @@ const Profile = () => {
         age: profile.age || 0,
         gender: profile.gender as 'male' | 'female' | undefined,
         activity_level: profile.activity_level as 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active' | undefined,
+        current_weight: profile.current_weight || 0,
+        target_weight: profile.target_weight || 0,
+        fitness_goal: profile.fitness_goal as 'lose_weight' | 'gain_weight' | 'gain_muscle' | 'maintain_weight' | 'improve_fitness' | undefined,
       });
     }
   }, [profile, form]);
@@ -91,6 +101,9 @@ const Profile = () => {
           age: values.age,
           gender: values.gender,
           activity_level: values.activity_level,
+          current_weight: values.current_weight,
+          target_weight: values.target_weight,
+          fitness_goal: values.fitness_goal,
          });
       if (error) {
         console.error('Profile update error:', error);
@@ -118,6 +131,28 @@ const Profile = () => {
   const handleSignOut = async () => {
     await signOut();
   };
+
+  const getFitnessGoalLabel = (goal: string) => {
+    switch (goal) {
+      case 'lose_weight': return 'Lose Weight';
+      case 'gain_weight': return 'Gain Weight';
+      case 'gain_muscle': return 'Gain Muscle';
+      case 'maintain_weight': return 'Maintain Weight';
+      case 'improve_fitness': return 'Improve Fitness';
+      default: return goal;
+    }
+  };
+
+  const getWeightProgress = () => {
+    if (!profile?.current_weight || !profile?.target_weight) return null;
+    const current = profile.current_weight;
+    const target = profile.target_weight;
+    const difference = Math.abs(current - target);
+    const direction = current > target ? 'lose' : 'gain';
+    return { current, target, difference, direction };
+  };
+
+  const weightProgress = getWeightProgress();
 
   return (
     <div className="min-h-screen bg-background">
@@ -190,47 +225,115 @@ const Profile = () => {
               {isLoadingProfile ? <LoadingSpinner /> : (
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="height_cm"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Height (cm) *</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                placeholder="e.g. 180" 
+                                {...field}
+                                onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : 0)}
+                                value={field.value || ""} 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="age"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Age *</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                placeholder="e.g. 30" 
+                                {...field}
+                                onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : 0)}
+                                value={field.value || ""} 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="current_weight"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Current Weight (kg) *</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                step="0.1"
+                                placeholder="e.g. 70.5" 
+                                {...field}
+                                onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : 0)}
+                                value={field.value || ""} 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="target_weight"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Target Weight (kg) *</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                step="0.1"
+                                placeholder="e.g. 65.0" 
+                                {...field}
+                                onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : 0)}
+                                value={field.value || ""} 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
                     <FormField
                       control={form.control}
-                      name="height_cm"
+                      name="fitness_goal"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Height (cm) *</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="number" 
-                              placeholder="e.g. 180" 
-                              {...field}
-                              onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : 0)}
-                              value={field.value || ""} 
-                            />
-                          </FormControl>
-                          <FormDescription>
-                            Your height is used to calculate your BMI for better recommendations.
-                          </FormDescription>
+                          <FormLabel>Fitness Goal *</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select your fitness goal" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="lose_weight">Lose Weight</SelectItem>
+                              <SelectItem value="gain_weight">Gain Weight</SelectItem>
+                              <SelectItem value="gain_muscle">Gain Muscle</SelectItem>
+                              <SelectItem value="maintain_weight">Maintain Weight</SelectItem>
+                              <SelectItem value="improve_fitness">Improve Fitness</SelectItem>
+                            </SelectContent>
+                          </Select>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
-                    <FormField
-                      control={form.control}
-                      name="age"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Age *</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="number" 
-                              placeholder="e.g. 30" 
-                              {...field}
-                              onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : 0)}
-                              value={field.value || ""} 
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    
                     <FormField
                       control={form.control}
                       name="gender"
@@ -252,6 +355,7 @@ const Profile = () => {
                         </FormItem>
                       )}
                     />
+                    
                     <FormField
                       control={form.control}
                       name="activity_level"
@@ -292,41 +396,43 @@ const Profile = () => {
         {profile && (
           <Card>
             <CardHeader>
-              <CardTitle>Current Profile Data (Debug)</CardTitle>
+              <CardTitle className="flex items-center space-x-2">
+                <Target className="h-5 w-5" />
+                <span>Fitness Overview</span>
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <pre className="text-sm bg-muted p-4 rounded">
-                {JSON.stringify(profile, null, 2)}
-              </pre>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-blue-600">
+                    {profile.current_weight ? `${profile.current_weight}kg` : 'Not set'}
+                  </div>
+                  <div className="text-sm text-muted-foreground">Current Weight</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-600">
+                    {profile.target_weight ? `${profile.target_weight}kg` : 'Not set'}
+                  </div>
+                  <div className="text-sm text-muted-foreground">Target Weight</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-purple-600">
+                    {profile.fitness_goal ? getFitnessGoalLabel(profile.fitness_goal) : 'Not set'}
+                  </div>
+                  <div className="text-sm text-muted-foreground">Fitness Goal</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-orange-600">
+                    {weightProgress ? `${weightProgress.difference.toFixed(1)}kg` : 'N/A'}
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    {weightProgress ? `To ${weightProgress.direction}` : 'Progress'}
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
         )}
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Fitness Goals</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600">72.5kg</div>
-                <div className="text-sm text-muted-foreground">Current Weight</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">70kg</div>
-                <div className="text-sm text-muted-foreground">Target Weight</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-purple-600">58.3kg</div>
-                <div className="text-sm text-muted-foreground">Muscle Mass</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-red-600">15.2%</div>
-                <div className="text-sm text-muted-foreground">Body Fat</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </div>
   );
