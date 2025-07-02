@@ -37,13 +37,13 @@ serve(async (req) => {
     }
     console.log('User authenticated:', user.id)
 
-    // Check if OpenAI API key is available
-    const openAIApiKey = Deno.env.get('OPENAI_API_KEY')
-    if (!openAIApiKey) {
-      console.error('OpenAI API key not configured')
-      throw new Error('OpenAI API key not configured')
+    // Check if Gemini API key is available
+    const geminiApiKey = Deno.env.get('GEMINI_API_KEY')
+    if (!geminiApiKey) {
+      console.error('Gemini API key not configured')
+      throw new Error('Gemini API key not configured')
     }
-    console.log('OpenAI API key found')
+    console.log('Gemini API key found')
 
     // Fetch comprehensive user data
     const { data: userData, error: dataError } = await supabase.rpc('get_user_data_for_recommendations', {
@@ -277,50 +277,54 @@ Return a detailed JSON response with this structure:
       planTitle = 'Complete Fitness & Nutrition Plan'
     }
 
-    console.log('Making OpenAI API request with model: gpt-4.1-2025-04-14')
+    console.log('Making Gemini API request with model: gemini-1.5-flash')
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4.1-2025-04-14',
-        messages: [
+        contents: [
           {
-            role: 'system',
-            content: systemPrompt
-          },
-          {
-            role: 'user',
-            content: `${userContext}\n\nPlease create a detailed, actionable plan that is appropriate for this user's current fitness level and goals. Make sure all recommendations are safe and realistic.`
+            parts: [
+              {
+                text: `${systemPrompt}\n\n${userContext}\n\nPlease create a detailed, actionable plan that is appropriate for this user's current fitness level and goals. Make sure all recommendations are safe and realistic. Return only valid JSON.`
+              }
+            ]
           }
         ],
-        temperature: 0.7,
-        max_tokens: 2000,
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 2000,
+        },
       }),
-    })
+    });
 
-    console.log('OpenAI API response status:', response.status)
+    console.log('Gemini API response status:', response.status)
 
     if (!response.ok) {
       const error = await response.text()
-      console.error('OpenAI API error:', error)
-      throw new Error(`OpenAI API error: ${response.status} - ${error}`)
+      console.error('Gemini API error:', error)
+      throw new Error(`Gemini API error: ${response.status} - ${error}`)
     }
 
     const data = await response.json()
-    console.log('OpenAI response received successfully')
+    console.log('Gemini response received successfully')
     
     let planContent
 
     try {
-      planContent = JSON.parse(data.choices[0].message.content)
+      const geminiResponse = data.candidates?.[0]?.content?.parts?.[0]?.text
+      if (!geminiResponse) {
+        throw new Error('No response content from Gemini')
+      }
+      
+      planContent = JSON.parse(geminiResponse)
       console.log('Plan content parsed successfully')
     } catch (parseError) {
-      console.error('Failed to parse OpenAI response:', parseError)
-      console.log('Raw OpenAI response:', data.choices[0].message.content)
+      console.error('Failed to parse Gemini response:', parseError)
+      console.log('Raw Gemini response:', data.candidates?.[0]?.content?.parts?.[0]?.text)
       
       // Fallback plan structure
       planContent = {
