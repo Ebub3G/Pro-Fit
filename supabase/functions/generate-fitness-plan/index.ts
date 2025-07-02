@@ -12,11 +12,15 @@ serve(async (req) => {
   }
 
   try {
+    console.log('Starting generate-fitness-plan function')
+    
     const { planType, userPreferences } = await req.json()
+    console.log('Request payload:', { planType, userPreferences })
     
     // Get the authorization header
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
+      console.error('No authorization header found')
       throw new Error('No authorization header')
     }
 
@@ -28,8 +32,18 @@ serve(async (req) => {
     // Get the current user
     const { data: { user }, error: userError } = await supabase.auth.getUser()
     if (userError || !user) {
+      console.error('User authentication error:', userError)
       throw new Error('User not authenticated')
     }
+    console.log('User authenticated:', user.id)
+
+    // Check if OpenAI API key is available
+    const openAIApiKey = Deno.env.get('OPENAI_API_KEY')
+    if (!openAIApiKey) {
+      console.error('OpenAI API key not configured')
+      throw new Error('OpenAI API key not configured')
+    }
+    console.log('OpenAI API key found')
 
     // Fetch comprehensive user data
     const { data: userData, error: dataError } = await supabase.rpc('get_user_data_for_recommendations', {
@@ -40,6 +54,7 @@ serve(async (req) => {
       console.error('Error fetching user data:', dataError)
       throw new Error('Failed to fetch user data')
     }
+    console.log('User data fetched:', userData)
 
     // Get additional profile data
     const { data: profile, error: profileError } = await supabase
@@ -51,6 +66,7 @@ serve(async (req) => {
     if (profileError) {
       console.error('Error fetching profile:', profileError)
     }
+    console.log('Profile data fetched:', profile)
 
     const userInfo = userData?.[0] || {}
     const profileInfo = profile || {}
@@ -110,10 +126,7 @@ User Profile:
 - Additional Preferences: ${JSON.stringify(userPreferences)}
 `
 
-    const openAIApiKey = Deno.env.get('OPENAI_API_KEY')
-    if (!openAIApiKey) {
-      throw new Error('OpenAI API key not configured')
-    }
+    console.log('User context prepared:', userContext)
 
     // Generate plan based on type
     let systemPrompt = ''
@@ -264,6 +277,8 @@ Return a detailed JSON response with this structure:
       planTitle = 'Complete Fitness & Nutrition Plan'
     }
 
+    console.log('Making OpenAI API request with model: gpt-4.1-2025-04-14')
+
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -287,19 +302,26 @@ Return a detailed JSON response with this structure:
       }),
     })
 
+    console.log('OpenAI API response status:', response.status)
+
     if (!response.ok) {
       const error = await response.text()
       console.error('OpenAI API error:', error)
-      throw new Error(`OpenAI API error: ${response.status}`)
+      throw new Error(`OpenAI API error: ${response.status} - ${error}`)
     }
 
     const data = await response.json()
+    console.log('OpenAI response received successfully')
+    
     let planContent
 
     try {
       planContent = JSON.parse(data.choices[0].message.content)
+      console.log('Plan content parsed successfully')
     } catch (parseError) {
       console.error('Failed to parse OpenAI response:', parseError)
+      console.log('Raw OpenAI response:', data.choices[0].message.content)
+      
       // Fallback plan structure
       planContent = {
         title: planTitle,
@@ -314,6 +336,8 @@ Return a detailed JSON response with this structure:
         tips: ["Stay consistent", "Listen to your body", "Track your progress"]
       }
     }
+
+    console.log('Saving plan to database')
 
     // Store the plan in the database
     const { data: savedPlan, error: saveError } = await supabase
@@ -334,6 +358,8 @@ Return a detailed JSON response with this structure:
       throw new Error('Failed to save plan')
     }
 
+    console.log('Plan saved successfully:', savedPlan.id)
+
     // Create daily tasks from the plan
     if (planContent.daily_tasks && Array.isArray(planContent.daily_tasks)) {
       const today = new Date().toISOString().split('T')[0]
@@ -348,14 +374,20 @@ Return a detailed JSON response with this structure:
         is_completed: false
       }))
 
+      console.log('Creating daily tasks:', tasksToCreate.length)
+
       const { error: taskError } = await supabase
         .from('user_daily_tasks')
         .insert(tasksToCreate)
 
       if (taskError) {
         console.error('Error creating daily tasks:', taskError)
+      } else {
+        console.log('Daily tasks created successfully')
       }
     }
+
+    console.log('Function completed successfully')
 
     return new Response(
       JSON.stringify({
